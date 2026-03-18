@@ -1,0 +1,7 @@
+/project/build/pioasm/CMakeFiles/pioasm.dir
+/project/build/pioasm/CMakeFiles/edit_cache.dir
+/project/build/pioasm/CMakeFiles/rebuild_cache.dir
+/project/build/pioasm/CMakeFiles/list_install_components.dir
+/project/build/pioasm/CMakeFiles/install.dir
+/project/build/pioasm/CMakeFiles/install/local.dir
+/project/build/pioasm/CMakeFiles/install/strip.dir

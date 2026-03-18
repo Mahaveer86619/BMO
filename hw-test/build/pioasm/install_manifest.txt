@@ -1,0 +1,5 @@
+/project/build/pioasm-install/pioasm/pioasm
+/project/build/pioasm-install/pioasm/pioasmTargets.cmake
+/project/build/pioasm-install/pioasm/pioasmTargets-release.cmake
+/project/build/pioasm-install/pioasm/pioasmConfig.cmake
+/project/build/pioasm-install/pioasm/pioasmConfigVersion.cmake
