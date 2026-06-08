@@ -1,0 +1,339 @@
+{
+  "info": {
+    "name": "BMO brain",
+    "_postman_id": "bmo-brain-collection-v1",
+    "description": "Test collection for the BMO brain FastAPI server.\n\nBase URL: http://localhost:8000\n\nEndpoints:\n- GET  /health              — liveness check\n- GET  /api/v1/status       — Ollama connectivity + loaded models\n- POST /api/v1/chat         — text-in / text-out (NLP layer + LLM)\n- POST /api/v1/talk         — audio-in / audio-out (full pipeline)\n- WS   /api/v1/ws/talk      — WebSocket pipeline with filler audio\n\nWebSocket note: test the WS endpoint via Postman's dedicated WebSocket tab\n(New > WebSocket Request), not from this collection. Connect to\nws://localhost:8000/api/v1/ws/talk, then send a binary WAV file.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Basic liveness check. Expects {\"status\": \"healthy\"}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body is healthy\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql(\"healthy\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Status",
+      "item": [
+        {
+          "name": "Service Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "status"]
+            },
+            "description": "Checks Ollama reachability and lists pulled models. If reachable=false the OLLAMA_URL env var or OLLAMA_HOST binding is wrong."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response has ollama key\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property(\"ollama\");",
+                  "    pm.expect(json).to.have.property(\"stt_provider\");",
+                  "    pm.expect(json).to.have.property(\"llm_model\");",
+                  "});",
+                  "pm.test(\"Ollama is reachable\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.ollama.reachable).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chat — NLP layer",
+      "item": [
+        {
+          "name": "Greeting (expects source=nlp)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chat"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"hey BMO\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Should be caught by the intent layer — no Ollama call, near-instant reply."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Source is nlp\", () => {",
+                  "    pm.expect(pm.response.json().source).to.eql(\"nlp\");",
+                  "});",
+                  "pm.test(\"Reply is not empty\", () => {",
+                  "    pm.expect(pm.response.json().reply).to.be.a(\"string\").and.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Farewell (expects source=nlp)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chat"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"goodbye\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Source is nlp\", () => {",
+                  "    pm.expect(pm.response.json().source).to.eql(\"nlp\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Time query (expects source=nlp)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chat"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"what time is it\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Source is nlp\", () => {",
+                  "    pm.expect(pm.response.json().source).to.eql(\"nlp\");",
+                  "});",
+                  "pm.test(\"Reply contains time pattern\", () => {",
+                  "    pm.expect(pm.response.json().reply).to.match(/\\d{1,2}:\\d{2}/);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Thanks (expects source=nlp)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chat"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"thank you\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Source is nlp\", () => {",
+                  "    pm.expect(pm.response.json().source).to.eql(\"nlp\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chat — LLM fallback",
+      "item": [
+        {
+          "name": "General question (expects source=llm)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chat"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"what is the speed of light?\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Not matched by any intent pattern — falls through to Ollama. Will take a few seconds."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Source is llm\", () => {",
+                  "    pm.expect(pm.response.json().source).to.eql(\"llm\");",
+                  "});",
+                  "pm.test(\"Reply is not empty\", () => {",
+                  "    pm.expect(pm.response.json().reply).to.be.a(\"string\").and.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Personal question (expects source=llm)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chat"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"what do you think about the universe?\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Source is llm\", () => {",
+                  "    pm.expect(pm.response.json().source).to.eql(\"llm\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Talk — Full audio pipeline",
+      "item": [
+        {
+          "name": "Talk with test.wav",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/talk",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "talk"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "audio",
+                  "type": "file",
+                  "src": "C:\\Personal projects\\BMO\\brain\\data\\test.wav",
+                  "description": "WAV audio file to transcribe and respond to"
+                }
+              ]
+            },
+            "description": "Full pipeline: STT (faster-whisper) → NLP/LLM → TTS (piper). Response is a WAV file.\n\nFirst call will be slow (~30-60s) as faster-whisper downloads the base model into /app/data/whisper.\n\nIn Postman: click Send, then save the response body as reply.wav and play it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response is audio/wav\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"audio/wav\");",
+                  "});",
+                  "pm.test(\"Response has audio bytes\", () => {",
+                  "    pm.expect(pm.response.responseSize).to.be.above(1000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
