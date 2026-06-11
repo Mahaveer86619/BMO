@@ -1,3 +1,5 @@
 .env
 docs/
 .worktrees/
+brain/data/whisper/
+brain/data/xtts/

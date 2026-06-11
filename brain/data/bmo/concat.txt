@@ -1,0 +1,8 @@
+file 'C:/Personal projects/BMO/brain/data/bmo/bank-acount.mp3'
+file 'C:/Personal projects/BMO/brain/data/bmo/battery-low-shut-down.mp3'
+file 'C:/Personal projects/BMO/brain/data/bmo/bmo-always-bounces-back.mp3'
+file 'C:/Personal projects/BMO/brain/data/bmo/check-it-out-yall.mp3'
+file 'C:/Personal projects/BMO/brain/data/bmo/hehehe.mp3'
+file 'C:/Personal projects/BMO/brain/data/bmo/i-love-you.mp3'
+file 'C:/Personal projects/BMO/brain/data/bmo/mmm-hmm.mp3'
+file 'C:/Personal projects/BMO/brain/data/bmo/who-wants-to-play-video-games.mp3'

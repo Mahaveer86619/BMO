@@ -18,5 +18,5 @@ class WhisperProvider:
     @classmethod
     def transcribe(cls, audio_path: str) -> str:
         model = cls._get_model()
-        segments, _ = model.transcribe(audio_path, beam_size=5)
+        segments, _ = model.transcribe(audio_path, beam_size=5, language="en")
         return " ".join(s.text for s in segments).strip()

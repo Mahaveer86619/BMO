@@ -4,19 +4,22 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - app_data:/app/data
+      - ./data/whisper:/app/data/whisper
+      - ./data/xtts:/app/data/xtts
+      - ./data/bmo_voice:/app/data/bmo_voice
+      - ./data/bmo:/app/data/bmo:ro
+    env_file: .env
     environment:
-      - OLLAMA_URL=${OLLAMA_URL:-http://ollama:11434}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
-      - STT_PROVIDER=local
-      - WHISPER_MODEL=base
-      - PIPER_MODEL_PATH=/app/data/piper/en_GB-alan-low.onnx
-      - HF_API_TOKEN=${HF_API_TOKEN:-}
-      - HF_WHISPER_MODEL=${HF_WHISPER_MODEL:-openai/whisper-base}
+      # Timezone — IST (UTC+5:30)
+      - TZ=Asia/Kolkata
+      # Container-internal paths — not user-configurable, never go in .env
+      - PIPER_MODEL_PATH=/opt/piper-models/en_GB-alan-low.onnx
+      - XTTS_REFERENCE_AUDIO=/app/data/bmo_voice/reference.wav
+      - XTTS_CACHE_DIR=/app/data/xtts
+      - COQUI_TOS_AGREED=1
+      - HF_TOKEN=${HF_API_TOKEN:-}
     depends_on:
       db:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -43,18 +46,36 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:alpine
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
     ports:
-      - "6379:6379"
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-bmo}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-bmo_secret}
     volumes:
-      - redis_data:/data
+      - minio_data:/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "mc", "ready", "local"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # redis:
+  #   image: redis:alpine
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
   ollama:
     profiles: ["ollama"]
@@ -66,7 +87,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  app_data:
-  postgres_data:
-  redis_data:
   ollama_data:
+  postgres_data:
+  minio_data:
