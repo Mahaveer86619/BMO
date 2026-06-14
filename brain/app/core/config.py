@@ -19,11 +19,34 @@ class Settings(BaseSettings):
     HF_API_TOKEN: str = ""
     HF_WHISPER_MODEL: str = "openai/whisper-base"
 
-    # TTS — "piper" is fast/generic, "xtts" clones the BMO reference voice
+    # TTS — "piper" | "xtts" | "cosyvoice"
     TTS_PROVIDER: str = "piper"
     PIPER_MODEL_PATH: str = "/opt/piper-models/en_GB-alan-low.onnx"
     XTTS_REFERENCE_AUDIO: str = "/app/data/bmo_voice/reference.wav"
     XTTS_CACHE_DIR: str = "/app/data/xtts"
+
+    # Kokoro-82M (only used when TTS_PROVIDER=kokoro)
+    KOKORO_CACHE_DIR: str = "/app/data/kokoro"
+    # Voice — see KokoroProvider docstring for full list
+    KOKORO_VOICE: str = "af_sky"
+    # 'a' = American English, 'b' = British English
+    KOKORO_LANG: str = "a"
+    KOKORO_SPEED: float = 1.0
+
+    # CosyVoice (only used when TTS_PROVIDER=cosyvoice)
+    # URL of the running CosyVoice FastAPI service
+    COSYVOICE_URL: str = "http://cosyvoice:50000"
+    # Mode: "sft" (built-in speaker) | "zero_shot" (voice clone) | "instruct"
+    COSYVOICE_MODE: str = "sft"
+    # SFT speaker ID — options depend on the model (e.g. "英文女", "英文男", "中文女")
+    COSYVOICE_SPEAKER: str = "英文女"
+    # zero_shot: path to a clean reference wav + its verbatim transcription
+    COSYVOICE_REFERENCE_AUDIO: str = "/app/data/bmo_voice/reference.wav"
+    COSYVOICE_PROMPT_TEXT: str = ""
+    # instruct: style/emotion instruction appended in instruct mode
+    COSYVOICE_INSTRUCT_TEXT: str = "Use a friendly, curious tone."
+    # Native output sample rate of the loaded model (22050 for most CosyVoice variants)
+    COSYVOICE_SAMPLE_RATE: int = 22050
 
     # Database (PostgreSQL via asyncpg) — leave empty to disable DB features
     DATABASE_URL: str = ""

@@ -6,6 +6,6 @@ __pycache__/
 *.pyo
 .pytest_cache/
 tests/
-ollama_data/
-data/whisper/
-data/xtts/
+# data/ is mounted as volumes at runtime — exclude from image
+data/
+cosyvoice/

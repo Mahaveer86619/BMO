@@ -1,21 +1,27 @@
+name: bmo
+
 services:
-  app:
+
+  # ── BMO brain server ─────────────────────────────────────────────────────────
+  brain:
     build: .
     ports:
       - "8000:8000"
     volumes:
-      - ./data/whisper:/app/data/whisper
-      - ./data/xtts:/app/data/xtts
+      - whisper_cache:/app/data/whisper
+      - xtts_cache:/app/data/xtts
+      - kokoro_cache:/app/data/kokoro
       - ./data/bmo_voice:/app/data/bmo_voice
       - ./data/bmo:/app/data/bmo:ro
     env_file: .env
     environment:
-      # Timezone — IST (UTC+5:30)
       - TZ=Asia/Kolkata
-      # Container-internal paths — not user-configurable, never go in .env
       - PIPER_MODEL_PATH=/opt/piper-models/en_GB-alan-low.onnx
       - XTTS_REFERENCE_AUDIO=/app/data/bmo_voice/reference.wav
       - XTTS_CACHE_DIR=/app/data/xtts
+      - WHISPER_MODEL_CACHE=/app/data/whisper
+      - COSYVOICE_REFERENCE_AUDIO=/app/data/bmo_voice/reference.wav
+      - KOKORO_CACHE_DIR=/app/data/kokoro
       - COQUI_TOS_AGREED=1
       - HF_TOKEN=${HF_API_TOKEN:-}
     depends_on:
@@ -27,8 +33,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 600s
 
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
   db:
     image: postgres:alpine
     environment:
@@ -46,7 +53,8 @@ services:
       timeout: 5s
       retries: 5
 
-  minio:
+  # ── MinIO (audio storage) ────────────────────────────────────────────────────
+  storage:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     ports:
@@ -64,19 +72,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # redis:
-  #   image: redis:alpine
-  #   ports:
-  #     - "6379:6379"
-  #   volumes:
-  #     - redis_data:/data
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-
+  # ── Ollama (local LLM) — optional ────────────────────────────────────────────
   ollama:
     profiles: ["ollama"]
     image: ollama/ollama:latest
@@ -86,7 +82,44 @@ services:
       - ollama_data:/root/.ollama
     restart: unless-stopped
 
+  # ── CosyVoice TTS service — optional ─────────────────────────────────────────
+  cosyvoice:
+    profiles: ["cosyvoice"]
+    build:
+      context: ./cosyvoice
+      args:
+        TORCH_INDEX: https://download.pytorch.org/whl/cpu
+    ports:
+      - "50000:50000"
+    environment:
+      - COSYVOICE_MODEL=${COSYVOICE_MODEL:-CosyVoice2-0.5B}
+      - COSYVOICE_HF_REPO=${COSYVOICE_HF_REPO:-FunAudioLLM/CosyVoice2-0.5B}
+      - COSYVOICE_PORT=50000
+      - HF_TOKEN=${HF_API_TOKEN:-}
+    volumes:
+      - cosyvoice_models:/models
+    # Uncomment for NVIDIA GPU (requires nvidia-container-toolkit on the host):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:50000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 600s
+
+
 volumes:
-  ollama_data:
+  whisper_cache:
+  xtts_cache:
+  kokoro_cache:
   postgres_data:
   minio_data:
+  ollama_data:
+  cosyvoice_models:

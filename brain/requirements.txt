@@ -15,3 +15,6 @@ TTS==0.22.0
 # TTS 0.22.0 uses BeamSearchScorer which was removed in transformers 4.40+.
 # torch is pinned to 2.2.0 (CPU), so transformers must also stay below 4.40.
 transformers==4.39.3
+# Kokoro-82M TTS — flow-matching model, CPU-friendly (~0.5–1s per sentence).
+# Uses its own misaki phonemizer for English; no transformers/espeak dependency.
+kokoro

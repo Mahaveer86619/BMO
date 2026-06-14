@@ -70,20 +70,37 @@ async def _load_models() -> None:
         state.mark_loaded("whisper")
         log.info("Whisper ready.")
 
-        # 2. TTS — Piper is instant, XTTS downloads ~1.8GB on first run
+        # 2. TTS — Piper is instant, XTTS downloads ~1.8GB on first run,
+        #          CosyVoice just verifies the remote service is reachable
         if settings.TTS_PROVIDER == "xtts":
             log.info("Loading XTTS v2 (may download ~1.8GB on first run)...")
             from app.providers.xtts_provider import XTTSProvider
             await asyncio.to_thread(XTTSProvider._get_model)
             state.mark_loaded("xtts")
             log.info("XTTS ready.")
+        elif settings.TTS_PROVIDER == "kokoro":
+            log.info("Loading Kokoro-82M pipeline (voice=%s)...", settings.KOKORO_VOICE)
+            from app.providers.kokoro_provider import KokoroProvider
+            await asyncio.to_thread(KokoroProvider._get_pipeline)
+            state.mark_loaded("kokoro")
+            log.info("Kokoro ready.")
+        elif settings.TTS_PROVIDER == "cosyvoice":
+            import httpx
+            log.info("Checking CosyVoice service at %s...", settings.COSYVOICE_URL)
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as c:
+                    r = await c.get(settings.COSYVOICE_URL.rstrip("/") + "/")
+                    log.info("CosyVoice service reachable (HTTP %d).", r.status_code)
+            except Exception as exc:
+                log.warning("CosyVoice service not yet reachable: %s (will retry on first request)", exc)
+            state.mark_loaded("cosyvoice")
         else:
             state.mark_loaded("piper")
 
-        # 3. Filler phrases (synthesized with Piper regardless of TTS_PROVIDER)
+        # 3. Filler phrases — synthesized using whichever TTS_PROVIDER is active
         log.info("Synthesizing filler phrases...")
         from app.services.filler import FillerService
-        await asyncio.to_thread(FillerService.load)
+        await FillerService.load()
         state.mark_loaded("fillers")
 
         state.mark_ready()

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pico W OLED Wiring</title>
+    <style>
+        body { font-family: sans-serif; background: #1e1e1e; color: #fff; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .diagram { background: #2d2d2d; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border: 1px solid #444; margin-bottom: 20px; width: 80%; max-width: 600px; }
+        .pin-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+        .pin-item { background: #3d3d3d; padding: 10px; border-radius: 4px; display: flex; justify-content: space-between; border-left: 4px solid #007acc; }
+        .pin-label { font-weight: bold; color: #4fc1ff; }
+        .pin-value { color: #ce9178; }
+        h2 { color: #4fc1ff; margin-top: 0; }
+        .note { font-size: 0.9em; color: #888; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="diagram">
+        <h2>Pico W to I2C OLED Wiring</h2>
+        <div class="pin-list">
+            <div class="pin-item">
+                <span class="pin-label">OLED GND</span>
+                <span class="pin-value">Pico Pin 3 (GND)</span>
+            </div>
+            <div class="pin-item">
+                <span class="pin-label">OLED VCC</span>
+                <span class="pin-value">Pico Pin 36 (3V3)</span>
+            </div>
+            <div class="pin-item">
+                <span class="pin-label">OLED SCL</span>
+                <span class="pin-value">Pico Pin 7 (GP5)</span>
+            </div>
+            <div class="pin-item">
+                <span class="pin-label">OLED SDA</span>
+                <span class="pin-value">Pico Pin 6 (GP4)</span>
+            </div>
+        </div>
+        <p class="note">Using I2C0 (Default pins for GP4/GP5). Pico Pin 36 provides regulated 3.3V.</p>
+    </div>
+</body>
+</html>

@@ -10,6 +10,8 @@ from pydantic import BaseModel
 log = logging.getLogger("bmo.ws")
 
 from app.core.config import settings
+from app.providers.cosyvoice import CosyVoiceProvider
+from app.providers.kokoro_provider import KokoroProvider
 from app.providers.piper import PiperProvider
 from app.providers.xtts_provider import XTTSProvider
 from app.services.brain import BrainService
@@ -114,7 +116,19 @@ async def ws_talk(websocket: WebSocket):
                 # Bridge silence: smooth handoff from last filler to first speech chunk
                 await _send_audio("chunk", silence_wav(350))
 
-                if settings.TTS_PROVIDER == "xtts":
+                if settings.TTS_PROVIDER == "cosyvoice":
+                    chunk_n = 0
+                    async for wav_chunk in CosyVoiceProvider.synthesize_stream(reply_text):
+                        chunk_n += 1
+                        log.info("STREAM chunk #%d  %d bytes", chunk_n, len(wav_chunk))
+                        await _send_audio("chunk", wav_chunk)
+                elif settings.TTS_PROVIDER == "kokoro":
+                    chunk_n = 0
+                    async for wav_chunk in KokoroProvider.synthesize_stream(reply_text):
+                        chunk_n += 1
+                        log.info("STREAM chunk #%d  %d bytes", chunk_n, len(wav_chunk))
+                        await _send_audio("chunk", wav_chunk)
+                elif settings.TTS_PROVIDER == "xtts":
                     chunk_n = 0
                     async for wav_chunk in XTTSProvider.synthesize_stream(
                         reply_text, settings.XTTS_REFERENCE_AUDIO

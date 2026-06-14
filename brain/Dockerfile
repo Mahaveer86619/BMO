@@ -34,4 +34,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+# entrypoint.sh pre-downloads models into their volumes on first run,
+# then execs uvicorn — so the server is always warm from the first request.
+RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+ENTRYPOINT ["/app/entrypoint.sh"]

@@ -13,7 +13,9 @@ from app.nlp.commands import (
     extract_weather_location, extract_search_query, extract_reminder_args,
 )
 from app.nlp.responses import TEMPLATED, format_response
+from app.providers.cosyvoice import CosyVoiceProvider
 from app.providers.hf_whisper import HFWhisperProvider
+from app.providers.kokoro_provider import KokoroProvider
 from app.providers.ollama import OllamaProvider
 from app.providers.piper import PiperProvider
 from app.providers.whisper import WhisperProvider
@@ -142,7 +144,11 @@ class BrainService:
         output_path = tempfile.mktemp(suffix=".wav")
         try:
             log.info("TTS  → synthesizing via %s", settings.TTS_PROVIDER)
-            if settings.TTS_PROVIDER == "xtts":
+            if settings.TTS_PROVIDER == "cosyvoice":
+                await CosyVoiceProvider.synthesize(reply_text, output_path)
+            elif settings.TTS_PROVIDER == "kokoro":
+                await asyncio.to_thread(KokoroProvider.synthesize, reply_text, output_path)
+            elif settings.TTS_PROVIDER == "xtts":
                 await asyncio.to_thread(
                     XTTSProvider.synthesize,
                     reply_text,

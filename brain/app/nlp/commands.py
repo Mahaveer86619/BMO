@@ -31,6 +31,8 @@ import operator
 import random
 import re
 
+from app.core.config import settings
+
 
 # ── Social patterns (no LUMI needed) ──────────────────────────────────────────
 
@@ -162,6 +164,52 @@ def extract_reminder_args(payload: str) -> tuple[str, str | None]:
     return p or "something", when
 
 
+# ── Wake word phonetic matching ────────────────────────────────────────────────
+# Whisper often mishears short robot names: "BMO" → "Bimu", "Bimo", "Bhima", "Bina".
+# All of these share the same American Soundex code (B500), so we match on sound
+# rather than exact spelling.
+
+_SDEX: dict[str, str] = {
+    "B":"1","F":"1","P":"1","V":"1",
+    "C":"2","G":"2","J":"2","K":"2","Q":"2","S":"2","X":"2","Z":"2",
+    "D":"3","T":"3",
+    "L":"4",
+    "M":"5","N":"5",
+    "R":"6",
+}
+
+def _soundex(word: str) -> str:
+    """Return the 4-char American Soundex code for a single word."""
+    w = re.sub(r"[^a-zA-Z]", "", word).upper()
+    if not w:
+        return "0000"
+    code = w[0]
+    prev = _SDEX.get(w[0], "0")
+    for ch in w[1:]:
+        c = _SDEX.get(ch, "0")
+        if c != "0" and c != prev:
+            code += c
+            if len(code) == 4:
+                break
+        if c != "0":
+            prev = c
+    return code.ljust(4, "0")
+
+
+def _find_wake_word(words: list[str], wake: str) -> int:
+    """
+    Return the index of the first word in `words` that phonetically matches
+    `wake` (same Soundex code or exact match). Returns -1 if not found.
+    """
+    target_sdx = _soundex(wake)
+    target = wake.lower()
+    for i, w in enumerate(words):
+        clean = re.sub(r"[^a-z]", "", w.lower())
+        if clean and (clean == target or _soundex(clean) == target_sdx):
+            return i
+    return -1
+
+
 # ── Public API ─────────────────────────────────────────────────────────────────
 
 def route(text: str, require_lumi: bool = True) -> tuple[str, str]:
@@ -182,19 +230,19 @@ def route(text: str, require_lumi: bool = True) -> tuple[str, str]:
         if re.search(pattern, lower):
             return intent, ""
 
-    has_lumi = bool(re.search(r"\blumi\b", lower))
+    wake = settings.WAKE_WORD.strip().lower()
 
-    if not has_lumi:
-        if not require_lumi:
-            # /chat endpoint: pattern-match on bare text
-            for pattern, cmd in _LUMI_PATTERNS:
-                if re.search(pattern, lower):
-                    return cmd, lower
-            return "llm", lower
-        return "silence", ""
+    if not wake or not require_lumi:
+        # No wake word configured, or /chat endpoint — process everything
+        stripped = lower
+    else:
+        words = lower.split()
+        idx = _find_wake_word(words, wake)
+        if idx == -1:
+            return "silence", ""
+        # Remove the matched word and surrounding punctuation
+        stripped = " ".join(words[:idx] + words[idx + 1:]).strip(" ,.")
 
-    # Strip the wake word
-    stripped = re.sub(r"\blumi\b[,\s]*", "", lower, flags=re.IGNORECASE).strip(" ,.")
     if not stripped:
         return "greeting", ""
 

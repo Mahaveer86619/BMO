@@ -1,4 +1,11 @@
+set(PICO_BOARD pico_w CACHE STRING "Board type")
+
 cmake_minimum_required(VERSION 3.22)
+
+# Set PICO_SDK_PATH if not provided in environment
+if (NOT DEFINED ENV{PICO_SDK_PATH})
+    set(ENV{PICO_SDK_PATH} "C:/Users/Admin/.pico-sdk/sdk/2.2.0")
+endif()
 
 include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 

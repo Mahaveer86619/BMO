@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pico W Hardware Testing</title>
+    <style>
+        body { font-family: sans-serif; background: #1e1e1e; color: #fff; padding: 20px; line-height: 1.6; }
+        .step { background: #2d2d2d; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 5px solid #007acc; }
+        h2 { color: #4fc1ff; }
+        .warning { color: #ff8c00; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #444; }
+        th { color: #4fc1ff; }
+    </style>
+</head>
+<body>
+    <h2>Multimeter Test Guide</h2>
+    
+    <div class="step">
+        <h3>1. Continuity Test (Power OFF)</h3>
+        <p>Set your multimeter to <b>Continuity Mode</b> (the icon that looks like a sound wave). With the Pico unplugged:</p>
+        <ul>
+            <li>Touch one probe to OLED <b>GND</b> and the other to Pico <b>Pin 3</b>. It should beep.</li>
+            <li>Touch one probe to OLED <b>VCC</b> and the other to Pico <b>Pin 36</b>. It should beep.</li>
+        </ul>
+        <p class="warning">Ensure no beep between VCC and GND (Short circuit check)!</p>
+    </div>
+
+    <div class="step">
+        <h3>2. Voltage Test (Power ON)</h3>
+        <p>Plug in the Pico. Set multimeter to <b>DC Voltage (20V)</b>:</p>
+        <table>
+            <tr><th>Probes</th><th>Expected Voltage</th></tr>
+            <tr><td>Black on Pico Pin 3, Red on Pico Pin 36</td><td>~3.3V</td></tr>
+            <tr><td>Black on Pico Pin 3, Red on OLED VCC</td><td>~3.3V</td></tr>
+        </table>
+    </div>
+
+    <div class="step">
+        <h3>3. I2C Logic High (Power ON)</h3>
+        <p>The I2C lines (SDA/SCL) should be "Pulled High" to 3.3V when idle.</p>
+        <ul>
+            <li>Red probe on OLED <b>SDA</b>, Black on GND: Should show ~3.3V.</li>
+            <li>Red probe on OLED <b>SCL</b>, Black on GND: Should show ~3.3V.</li>
+        </ul>
+    </div>
+</body>
+</html>

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import random
@@ -23,14 +24,20 @@ class FillerService:
     _clips: list[bytes] = []
 
     @classmethod
-    def load(cls) -> None:
+    async def load(cls) -> None:
         """
         Pre-synthesize all filler phrases at startup.
-        Uses XTTS when TTS_PROVIDER=xtts so fillers match BMO's voice.
-        Falls back to Piper silently per phrase so a single failure doesn't break all fillers.
+        Matches TTS_PROVIDER so fillers sound consistent with the main voice.
+        Falls back silently per phrase so a single failure doesn't break all fillers.
         """
-        use_xtts = settings.TTS_PROVIDER == "xtts"
-        if use_xtts:
+        provider = settings.TTS_PROVIDER
+        if provider == "cosyvoice":
+            from app.providers.cosyvoice import CosyVoiceProvider
+            log.info("Synthesizing fillers with CosyVoice...")
+        elif provider == "kokoro":
+            from app.providers.kokoro_provider import KokoroProvider
+            log.info("Synthesizing fillers with Kokoro (voice=%s)...", settings.KOKORO_VOICE)
+        elif provider == "xtts":
             from app.providers.xtts_provider import XTTSProvider
             log.info("Synthesizing fillers with XTTS (BMO voice)...")
         else:
@@ -40,10 +47,18 @@ class FillerService:
             path = None
             try:
                 path = tempfile.mktemp(suffix=".wav")
-                if use_xtts:
-                    XTTSProvider.synthesize(phrase, path, settings.XTTS_REFERENCE_AUDIO)
+                if provider == "cosyvoice":
+                    await CosyVoiceProvider.synthesize(phrase, path)
+                elif provider == "kokoro":
+                    await asyncio.to_thread(KokoroProvider.synthesize, phrase, path)
+                elif provider == "xtts":
+                    await asyncio.to_thread(
+                        XTTSProvider.synthesize, phrase, path, settings.XTTS_REFERENCE_AUDIO
+                    )
                 else:
-                    PiperProvider.synthesize(phrase, path, settings.PIPER_MODEL_PATH)
+                    await asyncio.to_thread(
+                        PiperProvider.synthesize, phrase, path, settings.PIPER_MODEL_PATH
+                    )
                 with open(path, "rb") as f:
                     cls._clips.append(pad_wav(f.read(), pre_ms=100, post_ms=300))
                 log.info("  ✓ %r", phrase)
