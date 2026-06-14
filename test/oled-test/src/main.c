@@ -4,8 +4,8 @@
 #include "ssd1306.h"
 
 #define I2C_PORT i2c0
-#define I2C_SDA 8
-#define I2C_SCL 9
+#define I2C_SDA 4
+#define I2C_SCL 5
 
 int main() {
     stdio_init_all();
@@ -25,8 +25,16 @@ int main() {
     ssd1306_draw_string(0, 20, "Test OK");
     ssd1306_display();
 
+    const uint LED_PIN = PICO_DEFAULT_LED_PIN;
+    gpio_init(LED_PIN);
+    gpio_set_dir(LED_PIN, GPIO_OUT);
+
     while (true) {
+        static bool led_state = false;
+        gpio_put(LED_PIN, led_state);
+        led_state = !led_state;
+        
         printf("OLED Test Running...\n");
-        sleep_ms(1000);
+        sleep_ms(500);
     }
 }
