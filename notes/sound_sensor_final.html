@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BMO — Sound Sensor Bring-up: Final Results</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #1e1e1e; color: #d4d4d4; padding: 30px; line-height: 1.7; max-width: 860px; margin: auto; }
+        h1 { color: #4fc1ff; border-bottom: 2px solid #007acc; padding-bottom: 8px; }
+        h2 { color: #4fc1ff; margin-top: 2em; }
+        h3 { color: #9cdcfe; margin-bottom: 4px; }
+        .section { background: #2d2d2d; padding: 18px 22px; border-radius: 8px; margin-bottom: 16px; border-left: 5px solid #007acc; }
+        .section.success { border-left-color: #4ec9b0; }
+        .section.warn    { border-left-color: #ce9178; }
+        .section.bug     { border-left-color: #f44747; }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; margin-left: 8px; vertical-align: middle; }
+        .tag.ok   { background: #1b4332; color: #4ec9b0; }
+        .tag.fail { background: #4a1212; color: #f44747; }
+        .tag.fix  { background: #1a3a1a; color: #89d185; }
+        .tag.warn { background: #3a2a00; color: #ce9178; }
+        code { background: #3d3d3d; padding: 2px 6px; border-radius: 4px; color: #dcdcaa; font-family: 'Cascadia Code', monospace; }
+        pre  { background: #1a1a1a; border: 1px solid #444; border-radius: 6px; padding: 14px; overflow-x: auto; color: #dcdcaa; font-family: 'Cascadia Code', monospace; font-size: 0.88em; line-height: 1.5; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid #3a3a3a; }
+        th { color: #4fc1ff; background: #252526; }
+        tr:last-child td { border-bottom: none; }
+        .pin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .pin-item { background: #3d3d3d; padding: 10px 14px; border-radius: 5px; display: flex; justify-content: space-between; border-left: 3px solid #007acc; }
+        .pin-item.unused { border-left-color: #555; opacity: 0.5; }
+        .pin-label { font-weight: bold; color: #4fc1ff; }
+        .pin-value { color: #ce9178; }
+        .meta { color: #888; font-size: 0.85em; margin-top: 6px; }
+        ul { margin-top: 6px; padding-left: 20px; }
+        li { margin-bottom: 4px; }
+        .result-banner { background: #1b4332; border: 1px solid #4ec9b0; border-radius: 8px; padding: 16px 22px; margin-bottom: 24px; color: #4ec9b0; font-size: 1.05em; font-weight: bold; }
+        .adc-bar { display: flex; align-items: center; gap: 12px; margin: 6px 0; }
+        .bar-label { width: 220px; font-size: 0.9em; color: #9cdcfe; flex-shrink: 0; }
+        .bar-track { background: #1a1a1a; border-radius: 4px; height: 18px; flex: 1; overflow: hidden; }
+        .bar-fill { height: 100%; border-radius: 4px; }
+        .bar-val { width: 60px; text-align: right; font-size: 0.85em; color: #888; flex-shrink: 0; }
+    </style>
+</head>
+<body>
+
+<h1>BMO — Sound Sensor Bring-up: Final Results</h1>
+<p class="meta">Date: 2026-06-14 &nbsp;|&nbsp; Platform: Raspberry Pi Pico W &nbsp;|&nbsp; Sensor: Digital Sound Sensor Module (KY-037 style)</p>
+
+<div class="result-banner">
+    ✓ Sound sensor working. AO-based software threshold triggering on claps and speech. Threshold value to be made dynamic in a future step.
+</div>
+
+<!-- ─── 1. HARDWARE ─────────────────────────────────────────────────────────── -->
+<h2>1. Hardware Setup</h2>
+
+<div class="section success">
+    <h3>Wiring <span class="tag ok">CONFIRMED</span></h3>
+    <div class="pin-grid">
+        <div class="pin-item"><span class="pin-label">Sensor VCC</span><span class="pin-value">Pico Pin 36 (3V3 OUT)</span></div>
+        <div class="pin-item"><span class="pin-label">Sensor GND</span><span class="pin-value">Pico Pin 38 (GND)</span></div>
+        <div class="pin-item"><span class="pin-label">Sensor AO</span><span class="pin-value">Pico Pin 31 (GP26 / ADC0)</span></div>
+        <div class="pin-item unused"><span class="pin-label">Sensor DO</span><span class="pin-value">Not connected (see §2)</span></div>
+    </div>
+    <p class="meta">ADC input: <code>ADC0</code> (GP26) &nbsp;|&nbsp; Sampling rate: 200 Hz (5ms loop) &nbsp;|&nbsp; ADC resolution: 12-bit (0–4095)</p>
+</div>
+
+<!-- ─── 2. ROOT CAUSE ──────────────────────────────────────────────────────── -->
+<h2>2. Root Cause: DO Pin Unusable, Switched to AO</h2>
+
+<div class="section bug">
+    <h3>DO Pin Stuck HIGH <span class="tag fail">FINDING</span></h3>
+    <p>
+        The DO (digital out) pin is driven by an onboard comparator whose threshold is set by the blue trimmer potentiometer.
+        Despite rotating the pot in both directions, DO remained permanently HIGH — the comparator never tripped.
+    </p>
+    <ul>
+        <li>Confirmed sensor was powered and DO was driving the line (connecting DO pulled GP15 from float to a solid HIGH).</li>
+        <li>The onboard comparator circuit is either out-of-range or the pot has a dead band — the threshold could not be brought below the mic's output level.</li>
+        <li>DO eventually triggered at extreme sound levels (ADC peak ~2200+) but was impractical for normal voice/clap detection.</li>
+    </ul>
+</div>
+
+<div class="section success">
+    <h3>Fix: Use AO + Software Threshold <span class="tag fix">FIXED</span></h3>
+    <p>
+        Abandoned DO entirely. Connected AO to <code>GP26 (ADC0)</code> and implemented a peak-detection + software threshold in firmware.
+        This is strictly better for the final BMO product:
+    </p>
+    <ul>
+        <li>No mechanical potentiometer to drift or fail.</li>
+        <li>Threshold adjustable in firmware at any time.</li>
+        <li>Peak value is logged — useful for future dynamic threshold calibration.</li>
+    </ul>
+</div>
+
+<!-- ─── 3. CALIBRATION DATA ───────────────────────────────────────────────── -->
+<h2>3. Calibration Data</h2>
+
+<div class="section">
+    <h3>Measured ADC Levels (12-bit, 0–4095)</h3>
+
+    <div class="adc-bar">
+        <div class="bar-label">Idle baseline</div>
+        <div class="bar-track"><div class="bar-fill" style="width:3.7%; background:#4ec9b0;"></div></div>
+        <div class="bar-val">~150</div>
+    </div>
+    <div class="adc-bar">
+        <div class="bar-label">Ambient room noise (peak)</div>
+        <div class="bar-track"><div class="bar-fill" style="width:9.5%; background:#ce9178;"></div></div>
+        <div class="bar-val">~390</div>
+    </div>
+    <div class="adc-bar">
+        <div class="bar-label">▲ THRESHOLD (current)</div>
+        <div class="bar-track"><div class="bar-fill" style="width:6.1%; background:#007acc;"></div></div>
+        <div class="bar-val">250</div>
+    </div>
+    <div class="adc-bar">
+        <div class="bar-label">Normal clap / speech</div>
+        <div class="bar-track"><div class="bar-fill" style="width:22%; background:#dcdcaa;"></div></div>
+        <div class="bar-val">500–1700</div>
+    </div>
+    <div class="adc-bar">
+        <div class="bar-label">Loud clap / shouting</div>
+        <div class="bar-track"><div class="bar-fill" style="width:72%; background:#f44747;"></div></div>
+        <div class="bar-val">2000–3600</div>
+    </div>
+
+    <p class="meta" style="margin-top: 14px;">
+        Note: ambient room noise peaked at ~390 during testing. The current threshold of 250 sits below that,
+        meaning false triggers are possible in noisy environments. The threshold should be made dynamic
+        (auto-calibrated on boot from a short silence window) in a future step.
+    </p>
+</div>
+
+<!-- ─── 4. FIRMWARE ──────────────────────────────────────────────────────── -->
+<h2>4. Final Firmware</h2>
+
+<div class="section success">
+    <h3>test/sound-sensor-test/src/main.c <span class="tag ok">WORKING</span></h3>
+    <pre>#define SOUND_PIN_AO   26    // GP26, Pin 31 — analog out (ADC0)
+#define THRESHOLD     250    // AO must exceed this to trigger
+#define DEBOUNCE_MS  1000    // one trigger per sound event max
+#define LED_ON_MS     200
+
+// Peak detection over 5ms poll window
+// Trigger fires when peak > THRESHOLD, debounced by 1000ms
+// Onboard LED lights for 200ms per trigger
+// Heartbeat prints idle AO + peak every second for monitoring</pre>
+    <p class="meta">Build: <code>test/sound-sensor-test/</code> — CMake + Ninja via VS Code Pico extension. Links: <code>pico_stdlib</code>, <code>hardware_adc</code>, <code>pico_cyw43_arch_lwip_threadsafe_background</code>.</p>
+</div>
+
+<!-- ─── 5. TEST RESULTS ──────────────────────────────────────────────────── -->
+<h2>5. Final Test Results</h2>
+
+<div class="section success">
+    <h3>Functional Tests <span class="tag ok">PASS</span></h3>
+    <table>
+        <tr><th>Test</th><th>Result</th></tr>
+        <tr><td>Sensor powered, AO idles at ~150 ADC counts</td><td><span class="tag ok">PASS</span></td></tr>
+        <tr><td>Hand clap at ~50cm → single TRIGGER line printed</td><td><span class="tag ok">PASS</span></td></tr>
+        <tr><td>Normal speech near sensor → triggers reliably</td><td><span class="tag ok">PASS</span></td></tr>
+        <tr><td>Pico W LED blinks 200ms on each trigger</td><td><span class="tag ok">PASS</span></td></tr>
+        <tr><td>1000ms debounce — single clap = single trigger</td><td><span class="tag ok">PASS</span></td></tr>
+        <tr><td>Quiet room idle — no false triggers</td><td><span class="tag ok">PASS</span></td></tr>
+    </table>
+</div>
+
+<!-- ─── 6. NEXT STEPS ──────────────────────────────────────────────────── -->
+<h2>6. Known Limitations / Next Steps</h2>
+
+<div class="section warn">
+    <ul>
+        <li><b>Static threshold:</b> Current value of <code>250</code> is below measured ambient noise peaks (~390). Works in a quiet room; may false-trigger in noisy environments. A dynamic threshold (auto-calibrated from a 2–3 second silence window on boot) is the correct long-term fix.</li>
+        <li><b>DO pin not used:</b> The onboard comparator could not be reliably calibrated via the trimmer pot. AO is the active signal path. DO wire can remain disconnected.</li>
+        <li><b>No integration with OLED yet:</b> Future step — display trigger status or waveform on the 1.3" OLED from Step 1.</li>
+    </ul>
+</div>
+
+</body>
+</html>

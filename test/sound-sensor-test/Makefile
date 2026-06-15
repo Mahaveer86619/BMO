@@ -1,7 +1,7 @@
-# Makefile for BMO OLED Test
+# Makefile for BMO Sound Sensor Test
 
 BUILD_DIR = build
-TARGET = oled_test
+TARGET    = sound_sensor_test
 
 all: build
 
@@ -12,7 +12,6 @@ build:
 
 flash: build
 	@echo "Flashing $(TARGET).uf2 to Pico..."
-	@echo "Ensure your Pico is in BOOTSEL mode or running a program with USB support."
 	picotool load -x $(BUILD_DIR)/$(TARGET).uf2
 
 deploy: flash
@@ -20,4 +19,4 @@ deploy: flash
 clean:
 	@if exist $(BUILD_DIR) rd /s /q $(BUILD_DIR)
 
-.PHONY: all build flash clean
+.PHONY: all build flash deploy clean

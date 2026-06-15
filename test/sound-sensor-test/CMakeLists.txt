@@ -17,7 +17,6 @@ if (EXISTS ${picoVscode})
 endif()
 # ====================================================================================
 
-# Force Board type and SDK path immediately
 set(PICO_BOARD pico_w CACHE STRING "Board type" FORCE)
 set(PICO_SDK_PATH "C:/Users/Admin/.pico-sdk/sdk/2.2.0" CACHE PATH "Path to the Pico SDK" FORCE)
 
@@ -25,24 +24,23 @@ cmake_minimum_required(VERSION 3.22)
 
 include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 
-project(oled_test C CXX ASM)
+project(sound_sensor_test C CXX ASM)
 
 pico_sdk_init()
 
-add_executable(oled_test
+add_executable(sound_sensor_test
     src/main.c
-    src/ssd1306.c
 )
 
-target_include_directories(oled_test PRIVATE 
+target_include_directories(sound_sensor_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(oled_test
+target_link_libraries(sound_sensor_test
     pico_stdlib
-    hardware_i2c
+    hardware_adc
     pico_cyw43_arch_lwip_threadsafe_background
 )
 
-pico_enable_stdio_usb(oled_test 1)
-pico_add_extra_outputs(oled_test)
+pico_enable_stdio_usb(sound_sensor_test 1)
+pico_add_extra_outputs(sound_sensor_test)

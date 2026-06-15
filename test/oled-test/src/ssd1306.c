@@ -1,12 +1,11 @@
 #include <string.h>
-#include <stdlib.h>
 #include "ssd1306.h"
 #include "hardware/i2c.h"
 
 static i2c_inst_t *ssd1306_i2c;
 static uint8_t buffer[SSD1306_WIDTH * SSD1306_HEIGHT / 8];
 
-// Basic 5x7 font
+// Basic 5x7 font (already implemented in your file, kept here for context)
 static const uint8_t font5x7[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, // (space)
     0x00, 0x00, 0x5F, 0x00, 0x00, // !
@@ -113,23 +112,25 @@ static void ssd1306_send_cmd(uint8_t cmd) {
 void ssd1306_init(i2c_inst_t *i2c) {
     ssd1306_i2c = i2c;
 
+    // SH1106 init — 1.3" OLEDs use SH1106, not SSD1306.
+    // SH1106 has 132 internal columns; visible 128 start at column offset 2.
+    // It only supports page addressing mode (no horizontal/vertical mode).
     static const uint8_t init_cmds[] = {
-        SSD1306_DISPLAYOFF,
-        SSD1306_SETDISPLAYCLOCKDIV, 0x80,
-        SSD1306_SETMULTIPLEX, 0x3F,
-        SSD1306_SETDISPLAYOFFSET, 0x00,
-        SSD1306_SETSTARTLINE | 0x00,
-        SSD1306_CHARGEPUMP, 0x14,
-        SSD1306_MEMORYMODE, 0x00, // Horizontal addressing mode
-        SSD1306_SEGREMAP | 0x01,
-        SSD1306_COMSCANDEC,
-        SSD1306_SETCOMPINS, 0x12,
-        SSD1306_SETCONTRAST, 0xCF,
-        SSD1306_SETPRECHARGE, 0xF1,
-        SSD1306_SETVCOMDETECT, 0x40,
-        SSD1306_DISPLAYALLON_RESUME,
-        SSD1306_NORMALDISPLAY,
-        SSD1306_DISPLAYON
+        0xAE,        // Display off
+        0xD5, 0x80,  // Clock divider / oscillator frequency
+        0xA8, 0x3F,  // Multiplex ratio: 64 rows
+        0xD3, 0x00,  // Display offset: 0
+        0x40,        // Start line: 0
+        0xAD, 0x8B,  // Internal DC-DC charge pump ON (SH1106 command, differs from SSD1306)
+        0xA1,        // Segment remap: col 131 -> SEG0 (mirrors X so text reads correctly)
+        0xC8,        // COM scan direction: descending (mirrors Y)
+        0xDA, 0x12,  // COM pins: alternative config, no left/right remap
+        0x81, 0xFF,  // Contrast: max
+        0xD9, 0x1F,  // Precharge period
+        0xDB, 0x40,  // VCOM deselect level
+        0xA4,        // Output follows RAM (not force-all-on)
+        0xA6,        // Normal display (not inverted)
+        0xAF,        // Display on
     };
 
     for (size_t i = 0; i < sizeof(init_cmds); i++) {
@@ -146,11 +147,12 @@ void ssd1306_clear() {
 
 void ssd1306_draw_pixel(int x, int y, bool on) {
     if (x < 0 || x >= SSD1306_WIDTH || y < 0 || y >= SSD1306_HEIGHT) return;
-
+    int page = y / 8;
+    int bit = y % 8;
     if (on) {
-        buffer[x + (y / 8) * SSD1306_WIDTH] |= (1 << (y % 8));
+        buffer[x + (page * SSD1306_WIDTH)] |= (1 << bit);
     } else {
-        buffer[x + (y / 8) * SSD1306_WIDTH] &= ~(1 << (y % 8));
+        buffer[x + (page * SSD1306_WIDTH)] &= ~(1 << bit);
     }
 }
 
@@ -173,18 +175,16 @@ void ssd1306_draw_string(int x, int y, const char *str) {
 }
 
 void ssd1306_display() {
-    ssd1306_send_cmd(SSD1306_COLUMNADDR);
-    ssd1306_send_cmd(0);
-    ssd1306_send_cmd(SSD1306_WIDTH - 1);
+    // SH1106 requires page-by-page writes in page addressing mode.
+    // Column offset 2: SH1106 has 132 internal columns; the visible 128 start at col 2.
+    static uint8_t page_buf[SSD1306_WIDTH + 1];
+    page_buf[0] = 0x40; // Co=0, D/C#=1: data stream
 
-    ssd1306_send_cmd(SSD1306_PAGEADDR);
-    ssd1306_send_cmd(0);
-    ssd1306_send_cmd((SSD1306_HEIGHT / 8) - 1);
-
-    uint8_t *temp_buf = malloc(sizeof(buffer) + 1);
-    temp_buf[0] = 0x40; // Data mode
-    memcpy(temp_buf + 1, buffer, sizeof(buffer));
-
-    i2c_write_blocking(ssd1306_i2c, SSD1306_I2C_ADDR, temp_buf, sizeof(buffer) + 1, false);
-    free(temp_buf);
+    for (int page = 0; page < SSD1306_HEIGHT / 8; page++) {
+        ssd1306_send_cmd(0xB0 + page); // Set page address
+        ssd1306_send_cmd(0x02);         // Column low nibble  (start at col 2)
+        ssd1306_send_cmd(0x10);         // Column high nibble (start at col 2)
+        memcpy(page_buf + 1, &buffer[page * SSD1306_WIDTH], SSD1306_WIDTH);
+        i2c_write_blocking(ssd1306_i2c, SSD1306_I2C_ADDR, page_buf, SSD1306_WIDTH + 1, false);
+    }
 }

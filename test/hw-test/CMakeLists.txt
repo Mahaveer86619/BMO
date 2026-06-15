@@ -1,3 +1,7 @@
+# Force Generic system to prevent CMake from using Windows linker flags
+set(CMAKE_SYSTEM_NAME Generic)
+set(CMAKE_SYSTEM_PROCESSOR arm)
+
 # == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
 if(WIN32)
     set(USERHOME $ENV{USERPROFILE})
@@ -12,16 +16,14 @@ if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
-set(PICO_BOARD pico_w CACHE STRING "Board type")
+
+# Force Board type and SDK path immediately
+set(PICO_BOARD pico_w CACHE STRING "Board type" FORCE)
+set(PICO_SDK_PATH "C:/Users/Admin/.pico-sdk/sdk/2.2.0" CACHE PATH "Path to the Pico SDK" FORCE)
 
 cmake_minimum_required(VERSION 3.22)
 
-# Set PICO_SDK_PATH if not provided in environment
-if (NOT DEFINED ENV{PICO_SDK_PATH})
-    set(ENV{PICO_SDK_PATH} "C:/Users/Admin/.pico-sdk/sdk/2.2.0")
-endif()
-
-include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 
 project(bmo_wifi_test C CXX ASM)
 
