@@ -33,9 +33,9 @@ This is **one continuous build, not a sequence of gated phases.** There is no "d
 Wire and test one component at a time, in this order. Full wiring diagrams, pin maps, and test snippets for every step live in [[Hardware]] — this is the build-order checklist; go there for the how.
 
 - [x] **OLED** — wire I2C (GP4/GP5), run the `i2c.scan()` + "BMO online" test ([[Hardware#Step 1 — OLED Display]]) — confirmed working 2026-08-30, with the sh1106 driver (see notes/oled_bringup_final.html)
-- [ ] **WiFi** — flash MicroPython, connect via `network` module, confirm `wlan.isconnected()`
+- [x] **WiFi** — flash MicroPython, connect via `network` module, confirm `wlan.isconnected()` — confirmed working 2026-08-30
 - [ ] **MAX98357 amp** — wire I2S (GP10/11/12) to VSYS, run the 440Hz tone test ([[Hardware#Step 5 — MAX98357 I2S Amplifier]])
-- [ ] **Sound sensor (fallback trigger)** — wire AO to GP28 (ADC2 — GP26 is the mic's), run the trigger-print test ([[Hardware#Step 2 — Sound Sensor (Fallback Trigger)]])
+- [ ] **Sound sensor (fallback trigger)** — wire AO to GP28 (ADC2 — GP26 is the mic's), run the trigger-print test ([[Hardware#Step 2 — Sound Sensor (Fallback Trigger)]]). Deprioritized 2026-08-30 — even with the AO fix it's an inherently unreliable trigger (ambient-noise-dependent, no real "was this speech" intelligence), which is exactly why VC-02 exists. Fine to leave unwired for now; it's a fallback, not a dependency for anything else.
 - [ ] **MAX9814 (content mic)** — wire to GP26/ADC0, run the ADC read test, calibrate `NOISE_THRESHOLD` ([[Hardware#Step 3 — MAX9814 Microphone (Content Capture)]])
 - [ ] **VC-02** — configure wake phrase via `voice.ai-thinker.com` *before* wiring, then wire VCC→VSYS/GND/TX1→GP1/RX1→GP0, run the UART echo test ([[Hardware#Step 4 — VC-02 Wake & Hard-Command Module (NEW)]])
 - [ ] **Battery pack** — wire the two 18650s in **parallel** (not series — see [[Hardware#⚠️ Power Planning — Read Before Wiring Anything]]), wire the divider to GP27, confirm 134N3P output reads 4.9–5.1V on a multimeter *before* connecting the Pico
@@ -47,7 +47,7 @@ Wire and test one component at a time, in this order. Full wiring diagrams, pin 
 
 Don't wait until Stage 1 is entirely finished to touch the server — check each new capability the moment it's wireable. The server side of every checkpoint below already exists; see [[Software]] for the endpoint/WebSocket details.
 
-- [ ] **Checkpoint A — reachability.** After OLED + WiFi: Pico hits `GET /health` or `/api/v1/status` and gets a response. Proves nothing more than "Pico can talk to the laptop" — do this before debugging anything more complex.
+- [x] **Checkpoint A — reachability.** After OLED + WiFi: Pico hits `GET /health` or `/api/v1/status` and gets a response. Proves nothing more than "Pico can talk to the laptop" — do this before debugging anything more complex. Confirmed 2026-08-30 — went further than a one-shot check: continuous polling every 5s with both server and Pico uptime shown live on the OLED (firmware/tests/09_health_display.py).
 - [ ] **Checkpoint B — downstream audio.** After the amp: request a WAV from `/api/v1/talk` (or a stubbed `/ws/audio` reply) and play it. Proves the response path — server → Pico → speaker — independent of the mic.
 - [ ] **Checkpoint C — upstream audio.** After MAX9814: stream real PCM up over `/ws/audio`, save it server-side to a file, and listen back. Proves the capture path — Pico → server — independent of VC-02 or the LLM. If it sounds garbled, fix it here before adding VC-02 into the loop.
 - [ ] **Checkpoint D — full loop.** After VC-02: say the wake phrase, confirm the stream opens, confirm the full pipeline runs (Whisper → NLP/Ollama → Piper), confirm the response plays and the OLED cycles through all states correctly. **This checkpoint is Iteration 1, complete.**
