@@ -1,17 +1,21 @@
 # BMO — top-level dev workflow.
 #
+# server/ holds everything server-side: orchestrator/ (Go), brain/ (Python),
+# db/, redis/, ollama/, storage/ (MinIO's bind-mounted object storage).
+#
 # Two server topologies, same system either way:
-#   single: one image — Go hub + brain (Python) + Ollama, supervised together
-#           (Dockerfile, supervisord.conf, docker-compose.yml)
-#   multi:  three images — server/brain/Ollama as separate containers
-#           (server/Dockerfile, brain/Dockerfile, docker-compose.multi.yml)
+#   single: one image — orchestrator + brain + Ollama, supervised together
+#           (server/Dockerfile, server/supervisord.conf, server/docker-compose.yml)
+#   multi:  three images — orchestrator/brain/Ollama as separate containers
+#           (server/orchestrator/Dockerfile, server/brain/Dockerfile,
+#           server/docker-compose.multi.yml)
 # Pick one; they use the same ports (4040/5432/6379/9000/9001) so don't run
 # both at once. `make down` / `make down-multi` before switching.
 #
 # Firmware: MicroPython over mpremote (see firmware/Makefile, firmware/README.md).
 
-COMPOSE := docker compose
-COMPOSE_MULTI := docker compose -f docker-compose.multi.yml
+COMPOSE := docker compose -f server/docker-compose.yml --project-directory server
+COMPOSE_MULTI := docker compose -f server/docker-compose.multi.yml --project-directory server
 
 .PHONY: help build up up-build stop down restart logs logs-server logs-db logs-redis logs-storage ps \
         build-multi up-multi up-multi-build stop-multi down-multi logs-multi logs-multi-server logs-multi-brain logs-multi-ollama ps-multi \
@@ -47,7 +51,7 @@ help:
 	@echo "  make pico-monitor                               - open serial REPL / live output"
 	@echo "  make pico-run FILE=tests/01_oled_test.py        - run a script live, nothing saved to flash"
 	@echo "  make pico-upload                                - push firmware/main.py + lib/, reset into it"
-	@echo "  make pico-put SRC=lib/ssd1306.py                - copy one arbitrary file to the board"
+	@echo "  make pico-put SRC=lib/sh1106.py                  - copy one arbitrary file to the board"
 	@echo "  make pico-ls                                    - list files currently on the board"
 	@echo "  make pico-reset                                 - soft reset (re-runs main.py)"
 	@echo "  make pico-hard-reset                            - hard reset via DTR toggle"

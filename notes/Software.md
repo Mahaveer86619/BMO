@@ -11,27 +11,40 @@ tags:
   - vc-02
 last_updated: 2026-08-29
 ---
-## Architecture Update (2026-08-30) — Go hub + Python AI service, one image
+## Architecture Update (2026-08-30) — orchestrator + brain, one server/ tree
 
-The server is actually two processes in one Docker image, not a single Python app as the
-rest of this doc assumed while nothing had been built yet:
+The server is Go + Python + Ollama, not a single Python app as the rest of this doc assumed
+while nothing had been built yet. Everything server-side now lives under one `server/`
+directory, one subdir per concern:
 
-- **Go (`server/cmd`, Echo)** — the always-on hub. Owns everything Pico-facing: `/api/v1/*`
-  today, `/ws/audio` + `/ws/control` once built, Postgres/Redis connections, health.
-- **Python (`server/ai`, FastAPI)** — internal-only, bound to `127.0.0.1:8500`, reachable
-  only from Go inside the same container (`internal/aiclient`). Owns everything LLM/audio-shaped
-  — STT, TTS, and LLM calls via a small LangChain-backed provider interface (`llm/router.py`)
-  so a "tier" is just `ChatOllama` or `ChatOpenAI`-shaped, swappable without touching call sites.
-- **One `server/Dockerfile`, one image** — a Go build stage, a Python runtime stage,
-  `supervisord` running both processes together (`server/supervisord.conf`). GPU vs CPU is
-  a build-time choice (`ENABLE_GPU` arg — whether CUDA torch wheels are even installed) and a
-  separate runtime probe (`docker/entrypoint.sh` checks `nvidia-smi`, exports
-  `BMO_COMPUTE_MODE`) — see `server/ai/README.md`.
+```
+server/
+  orchestrator/   Go (Echo) — the always-on hub. Owns everything Pico-facing.
+  brain/          Python (FastAPI) — STT/NLP/tools/LLM/TTS, the knowledge base,
+                  everything heavy. This is the pre-existing, more mature service
+                  discovered mid-session (real tool registry, XTTS, a full test
+                  suite) — the orchestrator wires into it, brain itself wasn't rewritten.
+  db/, redis/     placeholders — no custom config yet, actual data in Docker volumes
+  ollama/         no custom code — see server/ollama/README.md for how it's run
+  storage/        MinIO's object storage, bind-mounted here (not a named Docker
+                  volume) so uploaded audio is directly browsable on disk
+```
 
-Currently working end-to-end: `GET /api/v1/health` (pings Postgres, Redis, and the AI
-service), `POST /api/v1/chat` (Go → AI service → real `llama3.2:1b` via Ollama → reply).
-Nothing else below this line is built yet — treat the rest of this doc as the design/spec,
-not a status report.
+Two ways to run it, same system either way — `server/docker-compose.yml` (one image,
+orchestrator+brain+Ollama supervised together via `server/supervisord.conf`) or
+`server/docker-compose.multi.yml` (three separate containers). `make up` / `make up-multi`
+from the repo root. GPU vs CPU is a build-time choice (`ENABLE_GPU` arg) plus a runtime probe
+(`server/docker/entrypoint.sh` checks `nvidia-smi`).
+
+Currently working end-to-end: `GET /api/v1/health` (pings Postgres, Redis, and brain's
+`/ready`), `POST /api/v1/chat` (orchestrator → brain → real Ollama model → reply). Per-turn
+raw-audio upload to MinIO is wired into brain's `/api/v1/talk` and `/api/v1/ws/talk`, storing
+`input_audio_key` (and, on the HTTP path, `audio_key` for the response) in `interactions`.
+`/ws/audio` + `/ws/control` — the orchestrator actually fronting the Pico's WebSocket
+connections rather than brain answering them directly — is not built yet; see
+[[Next Phase — Restructure, Ambient Capture, RAG Portal]] for that and the rest of the queue.
+Nothing else below this line is built yet either — treat the rest of this doc as the
+design/spec, not a status report.
 
 ## What Is Built (Server Side)
 

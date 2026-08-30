@@ -9,7 +9,7 @@ name: bmo-multi
 services:
   server:
     build:
-      context: ./server
+      context: ./orchestrator
     container_name: bmo-server
     environment:
       DB_HOST: postgres
@@ -139,6 +139,8 @@ services:
       timeout: 5s
       retries: 10
 
+  # Bind-mounted to ./storage (server/storage/ on the host), same as the
+  # single-image setup — real files directly browsable, not a named volume.
   storage:
     image: minio/minio:latest
     container_name: bmo-storage
@@ -150,7 +152,7 @@ services:
       MINIO_ROOT_USER: bmo
       MINIO_ROOT_PASSWORD: bmo_secret
     volumes:
-      - minio_data:/data
+      - ./storage:/data
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
@@ -164,4 +166,3 @@ volumes:
   whisper_cache:
   xtts_cache:
   kokoro_cache:
-  minio_data:

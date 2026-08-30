@@ -1,0 +1,23 @@
+# Build context is server/ — only orchestrator/'s and brain/'s actual source
+# are needed; everything else here just bloats the build context. (Sibling
+# dirs like ../notes, ../firmware aren't in this context at all — nothing
+# needed to exclude them.)
+
+# brain/ — keep app/, static/, entrypoint.sh, requirements.txt; drop the rest
+brain/tests/
+brain/data/
+brain/cosyvoice/
+brain/.env
+brain/.env.*
+brain/*.postman_collection.json
+
+# orchestrator/ — drop anything not needed for the Go build
+orchestrator/.env
+
+# storage/ — the MinIO bind-mount target, real uploaded files, never image content
+storage/
+
+**/__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/

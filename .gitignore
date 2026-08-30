@@ -1,10 +1,14 @@
 .env
 docs/
 .worktrees/
-brain/data/whisper/
-brain/data/xtts/
+server/brain/data/whisper/
+server/brain/data/xtts/
 firmware/.venv/
 firmware/wifi_secrets.py
 hw-test/build/
 __pycache__/
 *.pyc
+
+# MinIO's actual object storage — real uploaded files, never committed
+server/storage/*
+!server/storage/.gitkeep

@@ -4,47 +4,41 @@ tags:
   - bmo
   - roadmap
   - planning
-status: Planned — not started
+status: §1 done 2026-08-30 — §2/§3 not started
 last_updated: 2026-08-30
 ---
-> Captured 2026-08-30 so this doesn't get lost — hardware wiring is the immediate focus (jumper wires,
-> no soldering); this is the software work queued up for after that. Nothing below is built yet.
+> Captured 2026-08-30. §1 (directory restructure) got done same-day once hardware bring-up hit a natural
+> pause point. §2 (ambient capture) and §3 (RAG portal) are still queued, nothing built there yet.
 
 ---
 
-## 1. Directory restructure — one `server/` with a subdir per concern
-
-Current layout has `server/` (Go), `brain/` (Python), plus root-level `Dockerfile`/`docker-compose*.yml`/
-`supervisord.conf`/`docker/` that span both. Target:
+## 1. Directory restructure — one `server/` with a subdir per concern ✅ Done
 
 ```
 server/
-  golang/           <- today's server/ (cmd/, internal/, go.mod, go.sum, standalone Dockerfile)
-  python/           <- today's brain/ (app/, static/, entrypoint.sh, requirements.txt, Dockerfile)
-  ollama/           <- Ollama-specific config/scripts (vendoring itself still happens in the root Dockerfile)
-  postgres/         <- schema reference, init scripts
-  redis/            <- config, if any ever needed
-  storage/          <- local object storage — a bind-mounted directory on disk, not a MinIO named
-                       volume, so stored audio is directly browsable/backupable from the host
-  Dockerfile              <- single-image monolith (moved from root)
-  docker-compose.yml       <- single-image variant (moved from root)
-  docker-compose.multi.yml <- multi-image variant (moved from root)
+  orchestrator/   Go (cmd/, internal/, go.mod, go.sum, standalone Dockerfile — was server/ directly)
+  brain/          Python (app/, static/, entrypoint.sh, requirements.txt, Dockerfile — was ../brain/)
+  db/             placeholder — schema is applied by brain/app/db/client.py at runtime, no config here yet
+  redis/          placeholder — no custom config yet
+  ollama/         no custom code — see server/ollama/README.md for how it's actually run (differs
+                  between the single-image and multi-image compose variants)
+  storage/        MinIO's object storage, bind-mounted (not a named Docker volume) — real uploaded
+                  files directly on disk at server/storage/, browsable/backupable from the host
+  Dockerfile              single-image monolith (was repo-root Dockerfile)
+  docker-compose.yml       single-image variant (was repo-root)
+  docker-compose.multi.yml multi-image variant (was repo-root)
   supervisord.conf
   docker/entrypoint.sh, bootstrap.sh
 ```
 
-Mechanically low-risk (Go's module path doesn't care about directory nesting, only import paths relative
-to `go.mod`'s location — as long as `cmd/`/`internal/` stay direct children of wherever `go.mod` lands).
-The real work is updating every `COPY`/`build: context:`/volume path across both Dockerfiles and both
-compose files to match, plus retesting both topologies end-to-end. Not done in this session — deferred
-per your call to focus on hardware first.
+Nesting both `orchestrator/` and `brain/` under `server/` also fixed something the previous root-level
+layout got wrong: `server/Dockerfile`'s build context is `server/` again (not the repo root), since both
+halves it needs to `COPY` from are now inside that one directory rather than being siblings of it.
 
-**Open question for when this happens:** MinIO vs. plain bind-mounted local storage for `server/storage/`
-— you said "a dedicated dir mounted volume for a local object storage," which reads as **drop MinIO,
-use a plain directory** rather than keep the S3-compatible layer. Worth confirming — MinIO's `mc`/S3 API
-is convenient for `brain/`'s existing `core/storage.py`, but a flat directory is simpler to inspect by hand
-and matches "local server, local hardware" more literally. Either way `core/storage.py`'s
-`upload_audio()`/interface stays the seam — swapping the backend shouldn't touch callers.
+The MinIO-vs-plain-directory question resolved as: **keep MinIO, bind-mount its own data directory** —
+`server/storage/` is MinIO's literal on-disk backend, so it's simultaneously "a dedicated local directory"
+and still reachable through MinIO's API/console, without rewriting `brain/core/storage.py`'s `upload_audio()`
+interface to talk to the filesystem directly.
 
 ---
 

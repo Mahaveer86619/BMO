@@ -112,6 +112,9 @@ services:
       retries: 10
 
   # ── MinIO — brain's audio object storage ────────────────────────────────────────
+  # Bind-mounted to ./storage (server/storage/ on the host) rather than a named
+  # Docker volume — the actual uploaded files are directly browsable/backupable
+  # from the host, not hidden inside Docker's volume storage.
   storage:
     image: minio/minio:latest
     container_name: bmo-storage
@@ -123,7 +126,7 @@ services:
       MINIO_ROOT_USER: bmo
       MINIO_ROOT_PASSWORD: bmo_secret
     volumes:
-      - minio_data:/data
+      - ./storage:/data
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
@@ -137,4 +140,3 @@ volumes:
   whisper_cache:
   xtts_cache:
   kokoro_cache:
-  minio_data:
