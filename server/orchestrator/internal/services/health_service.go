@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"time"
 
 	"github.com/Mahaveer86619/BMO/internal/aiclient"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,16 +16,20 @@ type Status struct {
 	// (whisper, piper/xtts/kokoro/cosyvoice, fillers) — empty until brain
 	// reports "ready". See aiclient.ReadyStatus.
 	Loaded []string `json:"loaded,omitempty"`
+	// UptimeSeconds is the orchestrator process's own uptime — the Pico
+	// polls this to show alongside its own uptime on the OLED.
+	UptimeSeconds int64 `json:"uptime_seconds"`
 }
 
 type HealthService struct {
-	pg    *pgxpool.Pool
-	redis *redis.Client
-	ai    *aiclient.Client
+	pg        *pgxpool.Pool
+	redis     *redis.Client
+	ai        *aiclient.Client
+	startTime time.Time
 }
 
-func NewHealthHealthService(pg *pgxpool.Pool, redis *redis.Client, ai *aiclient.Client) *HealthService {
-	return &HealthService{pg: pg, redis: redis, ai: ai}
+func NewHealthHealthService(pg *pgxpool.Pool, redis *redis.Client, ai *aiclient.Client, startTime time.Time) *HealthService {
+	return &HealthService{pg: pg, redis: redis, ai: ai, startTime: startTime}
 }
 
 func (s *HealthService) Check(ctx context.Context) Status {
@@ -63,8 +68,9 @@ func (s *HealthService) Check(ctx context.Context) Status {
 	}
 
 	return Status{
-		Status:   overall,
-		Services: Services,
-		Loaded:   loaded,
+		Status:        overall,
+		Services:      Services,
+		Loaded:        loaded,
+		UptimeSeconds: int64(time.Since(s.startTime).Seconds()),
 	}
 }

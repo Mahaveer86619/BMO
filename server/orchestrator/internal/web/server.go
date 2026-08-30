@@ -2,6 +2,7 @@ package web
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/Mahaveer86619/BMO/internal/aiclient"
 	"github.com/Mahaveer86619/BMO/internal/config"
@@ -20,6 +21,7 @@ type Server struct {
 	Router    *echo.Echo
 	PG        *pgxpool.Pool
 	Redis     *redis.Client
+	StartTime time.Time
 }
 
 func NewServer(appConfig *config.AppConfig, pg *pgxpool.Pool, redisClient *redis.Client) *Server {
@@ -28,6 +30,7 @@ func NewServer(appConfig *config.AppConfig, pg *pgxpool.Pool, redisClient *redis
 		Router:    echo.New(),
 		PG:        pg,
 		Redis:     redisClient,
+		StartTime: time.Now(),
 	}
 }
 
@@ -46,11 +49,11 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) registerServicesAndHandlers() {
-	// Internal AI service client (server/ai) — see internal/aiclient
+	// Internal brain client — see internal/aiclient
 	aiClient := aiclient.New(s.AppConfig)
 
 	// Services
-	healthService := services.NewHealthHealthService(s.PG, s.Redis, aiClient)
+	healthService := services.NewHealthHealthService(s.PG, s.Redis, aiClient, s.StartTime)
 	chatService := services.NewChatService(aiClient)
 
 	// API groups
