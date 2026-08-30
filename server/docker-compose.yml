@@ -36,7 +36,15 @@ services:
       MINIO_BUCKET: bmo-audio
       MINIO_SECURE: "false"
       DEFAULT_WEATHER_LOCATION: London
-      WAKE_WORD: "" # leave empty for HTTP /talk testing; set once VC-02 gating is wired
+      # Leave empty permanently, not just for now — this is a separate, text-level
+      # "does the transcript literally contain this word" check inside brain's own
+      # NLP routing (app/nlp/commands.py), independent of VC-02's hardware wake
+      # trigger. Enabling it once VC-02 is wired would mean every spoken command
+      # also has to repeat this word in the sentence itself ("Lumi, what time is
+      # it") on top of VC-02's own wake phrase — VC-02 gating the stream is
+      # supposed to make that redundant, per notes/Software.md's Wake & Hard-
+      # Command Logic ("removed, not just relocated").
+      WAKE_WORD: ""
       LOG_LEVEL: alerts
 
       # Space-separated models to auto-pull on first boot (must match OLLAMA_MODEL
