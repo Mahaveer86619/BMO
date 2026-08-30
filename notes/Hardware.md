@@ -123,7 +123,7 @@ Approximate draws — measure your actual units once assembled, these are typica
 | GP10 | MAX98357 | BCLK | I2S Bit Clock |
 | GP11 | MAX98357 | LRC | I2S Word Select |
 | GP12 | MAX98357 | DIN | I2S Data Out |
-| GP15 | Sound Sensor | DO | **Fallback trigger only** — VC-02 UART is primary |
+| GP28 (ADC2) | Sound Sensor | AO | **Fallback trigger only** — VC-02 UART is primary. DO is dead on this unit (comparator stuck HIGH regardless of trim pot — confirmed on real hardware, see notes/sound_sensor_final.html) — AO + software threshold is the only working path, moved here (not GP26) since that's the mic's |
 | GP26 (ADC0) | MAX9814 | Audio In | Content-capture mic — separate mic from VC-02 |
 | GP27 (ADC1) | Voltage Divider | Battery Monitor | Moved from GP26 to free ADC0 for the mic |
 | VSYS (pin 39) | 134N3P OUT+, MAX98357 VIN, **VC-02 VCC** | 5V rail | VC-02 minimum is 3.6V — must not go on 3V3 |
@@ -153,16 +153,23 @@ OLED SCL  → Pico GP5  (pin 7)
 
 ```python
 from machine import Pin, I2C
-import ssd1306
+import sh1106
 
 i2c = I2C(0, sda=Pin(4), scl=Pin(5), freq=400000)
 print(i2c.scan())  # expect [60] = 0x3C
-oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+oled = sh1106.SH1106_I2C(128, 64, i2c)
 oled.text("BMO online", 0, 28)
 oled.show()
 ```
 
-If `i2c.scan()` returns `[]`, drop freq to `100000`. If still empty, swap SDA/SCL wires. If address is `61` (0x3D) instead of `60`, update the driver init accordingly.
+**This is an SH1106 panel, not SSD1306** — same address and footprint, but a different addressing model
+(132 internal columns, page-mode-only writes). An SSD1306 driver against this panel either times out or
+gets ACKed while displaying garbage — confirmed the hard way, see notes/oled_bringup_final.html. Use
+`sh1106.py` (robert-hh/SH1106 on GitHub), not micropython-lib's `ssd1306.py`.
+
+If `i2c.scan()` returns `[]`, drop freq to `100000`. If still empty, check for a loose wire before assuming
+it's a pin/address problem — a marginal connection can make `scan()` flicker between finding and not
+finding the device. If the address is `61` (0x3D) instead of `60`, pass `addr=0x3D` to `SH1106_I2C`.
 
 ---
 
@@ -170,27 +177,39 @@ If `i2c.scan()` returns `[]`, drop freq to `100000`. If still empty, swap SDA/SC
 
 Not the primary trigger anymore — VC-02 (Step 4) is. Keep it wired anyway; it's free insurance if VC-02 ever mishears you or drops out.
 
+**DO is dead on this unit** — the onboard comparator stays stuck HIGH no matter how the trim pot is set
+(confirmed on real hardware, see notes/sound_sensor_final.html). Don't bother wiring it. Use AO with a
+software threshold instead — strictly better anyway (no mechanical pot to drift, threshold tunable in
+firmware). AO needs an ADC pin, and GP26 is already the mic's — use GP28 (ADC2), the only ADC pin still free.
+
 ```
 Sound Sensor VCC → Pico 3V3
 Sound Sensor GND → Pico GND
-Sound Sensor DO  → Pico GP15  (pin 20)
-Sound Sensor AO  → leave unconnected
+Sound Sensor AO  → Pico GP28  (ADC2, pin 34)
+Sound Sensor DO  → leave unconnected
 ```
-
-Adjust the pot on the sensor board: triggers on a normal speaking voice, not background noise.
 
 **Test:**
 
 ```python
-from machine import Pin
+from machine import ADC, Pin
 import time
 
-sound = Pin(15, Pin.IN)
+sensor = ADC(Pin(28))
+THRESHOLD = 500  # ADC counts (12-bit-scaled) — see calibration data below
+
 while True:
-    if sound.value() == 1:
-        print("Trigger!")
-    time.sleep(0.05)
+    val = sensor.read_u16() >> 4  # scale 16-bit read_u16() down to the 12-bit range calibration used
+    if val > THRESHOLD:
+        print("Trigger! peak =", val)
+    time.sleep(0.005)
 ```
+
+**Calibration data from real hardware** (12-bit scale, 0–4095): idle baseline ~150, ambient room noise
+peaks ~390, normal clap/speech 500–1700, loud clap/shouting 2000–3600. `THRESHOLD=500` sits above measured
+ambient noise with some margin — the original bring-up's `THRESHOLD=250` was *below* its measured ambient
+peak (~390) and risked false triggers in a noisy room; don't reuse that value. Longer-term this should be
+auto-calibrated from a few seconds of silence on boot rather than a fixed constant — noted but not built.
 
 ---
 

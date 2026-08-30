@@ -23,7 +23,7 @@ help:
 	@echo "make monitor                                - open serial REPL (Ctrl-] to exit)"
 	@echo "make run FILE=tests/01_oled_test.py         - run a script live, nothing saved to flash"
 	@echo "make upload                                  - copy lib/ + main.py to the board, then reset into it"
-	@echo "make put SRC=lib/ssd1306.py [DST=ssd1306.py] - copy one arbitrary file to the board"
+	@echo "make put SRC=lib/sh1106.py [DST=sh1106.py] - copy one arbitrary file to the board"
 	@echo "make reset                                   - soft reset (Ctrl-D equivalent, re-runs main.py)"
 	@echo "make hard-reset                              - hard reset via DTR toggle"
 
@@ -47,7 +47,7 @@ run: port
 	mpremote $(CONNECT) run $(FILE)
 
 put: port
-	@if [ -z "$(SRC)" ]; then echo "Usage: make put SRC=lib/ssd1306.py [DST=ssd1306.py]"; exit 1; fi
+	@if [ -z "$(SRC)" ]; then echo "Usage: make put SRC=lib/sh1106.py [DST=sh1106.py]"; exit 1; fi
 	mpremote $(CONNECT) fs cp $(SRC) :$(if $(DST),$(DST),$(notdir $(SRC)))
 
 upload: port

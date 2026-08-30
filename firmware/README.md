@@ -24,7 +24,7 @@ USB IDs world-readable/writable, so no `sudo`/group membership is needed to talk
 ```
 firmware/
   tests/       — standalone bring-up scripts, one per Stage 1 hardware checklist item (see notes/BMO – Full Build Roadmap.md)
-  lib/         — shared drivers (e.g. ssd1306.py) that need to live on the board's flash to be import-able
+  lib/         — shared drivers (e.g. sh1106.py) that need to live on the board's flash to be import-able
   main.py      — the real firmware entry point (not written yet — Stage 3 work, see project root notes)
   wifi_secrets.py  — gitignored; holds SSID/password, imported by scripts that need WiFi
 ```
@@ -36,7 +36,7 @@ make -C firmware help                          # list everything
 make -C firmware run FILE=tests/01_oled_test.py  # run a test script live — nothing is saved to flash
 make -C firmware monitor                       # serial REPL / live print() output — Ctrl-] to exit
 make -C firmware ls                            # what's actually on the board right now
-make -C firmware put SRC=lib/ssd1306.py         # copy one driver file onto the board's flash
+make -C firmware put SRC=lib/sh1106.py         # copy one driver file onto the board's flash
 make -C firmware upload                        # push lib/ + main.py, then reset the board into it
 ```
 

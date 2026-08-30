@@ -35,7 +35,7 @@ Wire and test one component at a time, in this order. Full wiring diagrams, pin 
 - [ ] **OLED** — wire I2C (GP4/GP5), run the `i2c.scan()` + "BMO online" test ([[Hardware#Step 1 — OLED Display]])
 - [ ] **WiFi** — flash MicroPython, connect via `network` module, confirm `wlan.isconnected()`
 - [ ] **MAX98357 amp** — wire I2S (GP10/11/12) to VSYS, run the 440Hz tone test ([[Hardware#Step 5 — MAX98357 I2S Amplifier]])
-- [ ] **Sound sensor (fallback trigger)** — wire to GP15, run the trigger-print test ([[Hardware#Step 2 — Sound Sensor (Fallback Trigger)]])
+- [ ] **Sound sensor (fallback trigger)** — wire AO to GP28 (ADC2 — GP26 is the mic's), run the trigger-print test ([[Hardware#Step 2 — Sound Sensor (Fallback Trigger)]])
 - [ ] **MAX9814 (content mic)** — wire to GP26/ADC0, run the ADC read test, calibrate `NOISE_THRESHOLD` ([[Hardware#Step 3 — MAX9814 Microphone (Content Capture)]])
 - [ ] **VC-02** — configure wake phrase via `voice.ai-thinker.com` *before* wiring, then wire VCC→VSYS/GND/TX1→GP1/RX1→GP0, run the UART echo test ([[Hardware#Step 4 — VC-02 Wake & Hard-Command Module (NEW)]])
 - [ ] **Battery pack** — wire the two 18650s in **parallel** (not series — see [[Hardware#⚠️ Power Planning — Read Before Wiring Anything]]), wire the divider to GP27, confirm 134N3P output reads 4.9–5.1V on a multimeter *before* connecting the Pico
