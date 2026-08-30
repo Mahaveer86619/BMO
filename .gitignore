@@ -6,3 +6,5 @@ brain/data/xtts/
 firmware/.venv/
 firmware/wifi_secrets.py
 hw-test/build/
+__pycache__/
+*.pyc
