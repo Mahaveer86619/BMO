@@ -36,7 +36,7 @@ Full rationale for the two-ear split lives in [[Hardware#Why VC-02 Changes the D
 | Server pipeline (core) | 🔄 In Progress | Go hub + Python AI service, one Docker image (see [[Software#Architecture Update (2026-08-30) — Go hub + Python AI service, one image]]) — health check + `/api/v1/chat` → real `llama3.2:1b` working; STT/TTS/memory/router not started |
 | BMO voice | 🔄 In Progress | Generic Piper voice works; XTTS cloning next |
 | WebSocket layer | 📐 Designed | Simplified now — no server-side wake gate once VC-02 lands |
-| Hardware — core (OLED, amp, mics, battery) | ⏳ Not started | All components in hand |
+| Hardware — core (OLED, amp, mics, battery) | 🔄 In Progress | OLED confirmed working (SH1106 driver, GP4/GP5) — see [[BMO – Full Build Roadmap]] Stage 1. Rest not started |
 | Hardware — VC-02 wake module | 🆕 Planned | Replaces noise-threshold guessing as the primary trigger |
 | Memory graph, tool-calling, affect detection, router | 🔮 Future | Designed, sequenced, not started — see [[BMO – Full Build Roadmap]] |
 

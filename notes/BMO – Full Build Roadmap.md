@@ -32,7 +32,7 @@ This is **one continuous build, not a sequence of gated phases.** There is no "d
 
 Wire and test one component at a time, in this order. Full wiring diagrams, pin maps, and test snippets for every step live in [[Hardware]] — this is the build-order checklist; go there for the how.
 
-- [ ] **OLED** — wire I2C (GP4/GP5), run the `i2c.scan()` + "BMO online" test ([[Hardware#Step 1 — OLED Display]])
+- [x] **OLED** — wire I2C (GP4/GP5), run the `i2c.scan()` + "BMO online" test ([[Hardware#Step 1 — OLED Display]]) — confirmed working 2026-08-30, with the sh1106 driver (see notes/oled_bringup_final.html)
 - [ ] **WiFi** — flash MicroPython, connect via `network` module, confirm `wlan.isconnected()`
 - [ ] **MAX98357 amp** — wire I2S (GP10/11/12) to VSYS, run the 440Hz tone test ([[Hardware#Step 5 — MAX98357 I2S Amplifier]])
 - [ ] **Sound sensor (fallback trigger)** — wire AO to GP28 (ADC2 — GP26 is the mic's), run the trigger-print test ([[Hardware#Step 2 — Sound Sensor (Fallback Trigger)]])
