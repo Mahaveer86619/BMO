@@ -94,15 +94,24 @@ class BrainService:
     @staticmethod
     async def process_to_text(
         audio_bytes: bytes,
-    ) -> tuple[str | None, str, str, str]:
+    ) -> tuple[str | None, str, str, str, str | None]:
         """
         Full pipeline: audio → STT → route → execute → text reply.
-        Returns (reply_text, transcript, command, payload).
-        reply_text is None when input is silently ignored.
+        Returns (reply_text, transcript, command, payload, input_audio_key).
+        reply_text is None when input is silently ignored — input_audio_key is
+        still returned in that case (upload already happened), callers just
+        don't have anything meaningful to log it against.
+
+        The raw input upload runs concurrently with STT, not after it — it's
+        an independent I/O call, no reason to add its latency to the critical
+        path just because it happens to be defined nearby.
         """
-        transcript = await _transcribe(audio_bytes)
+        transcript, input_audio_key = await asyncio.gather(
+            _transcribe(audio_bytes),
+            upload_audio(audio_bytes),
+        )
         if not transcript:
-            return None, "", "", ""
+            return None, "", "", "", input_audio_key
 
         log.info("STT  → %r", transcript)
 
@@ -110,7 +119,7 @@ class BrainService:
         log.info("CMD  → %r  payload=%r", command, payload)
 
         if command == "silence":
-            return None, transcript, command, payload
+            return None, transcript, command, payload, input_audio_key
 
         # Instant synchronous replies — no I/O
         direct = handle_direct(command, payload)
@@ -118,13 +127,13 @@ class BrainService:
             if command in TEMPLATED:
                 direct = format_response(command, direct)
             log.info("DIRECT → %r", direct)
-            return direct, transcript, command, payload
+            return direct, transcript, command, payload, input_audio_key
 
         # Dispatch to NLP tool or LLM, then shape through response template
         reply = await _execute_intent(command, payload)
         reply = format_response(command, reply)
         log.info("REPLY → %r", reply)
-        return reply, transcript, command, payload
+        return reply, transcript, command, payload, input_audio_key
 
     @staticmethod
     async def process_talk(audio_bytes: bytes) -> bytes:
@@ -134,7 +143,7 @@ class BrainService:
         Returns a normalised WAV (or silence if input was ignored).
         """
         t_start = time.monotonic()
-        reply_text, transcript, command, payload = await BrainService.process_to_text(audio_bytes)
+        reply_text, transcript, command, payload, input_audio_key = await BrainService.process_to_text(audio_bytes)
 
         if reply_text is None:
             return silence_wav(200)
@@ -168,13 +177,15 @@ class BrainService:
             if os.path.exists(output_path):
                 os.remove(output_path)
 
-        # Upload and log asynchronously — don't block the response
+        # Upload the response audio and log asynchronously — don't block the
+        # reply. The raw input was already uploaded inside process_to_text.
         audio_key = await upload_audio(audio)
         asyncio.create_task(log_interaction(
             transcript=transcript,
             command=command,
             payload=payload,
             reply=reply_text,
+            input_audio_key=input_audio_key,
             audio_key=audio_key,
             latency_ms=latency_ms,
         ))

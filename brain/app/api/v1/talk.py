@@ -4,6 +4,8 @@ import logging
 import os
 import tempfile
 
+import time
+
 from fastapi import APIRouter, Response, UploadFile, File, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
@@ -17,6 +19,7 @@ from app.providers.xtts_provider import XTTSProvider
 from app.services.brain import BrainService
 from app.services.chat import ChatService
 from app.services.filler import FillerService
+from app.services.logger import log_interaction
 from app.utils.audio import normalize_audio, silence_wav
 
 router = APIRouter()
@@ -94,9 +97,10 @@ async def ws_talk(websocket: WebSocket):
             stop = asyncio.Event()
             drip_task = asyncio.create_task(_drip(stop))
 
+            t_start = time.monotonic()
             try:
                 # STT + command routing + LLM (if needed)
-                reply_text, transcript, _cmd, _payload = await BrainService.process_to_text(audio_bytes)
+                reply_text, transcript, cmd, payload, input_audio_key = await BrainService.process_to_text(audio_bytes)
 
                 stop.set()
                 drip_task.cancel()
@@ -155,6 +159,18 @@ async def ws_talk(websocket: WebSocket):
                 # Tail silence: graceful end before the connection goes idle
                 await _send_audio("chunk", silence_wav(500))
                 await websocket.send_json({"type": "done"})
+
+                # No consolidated response WAV to upload here — TTS was streamed
+                # in chunks, not assembled into one file. Log everything else.
+                latency_ms = int((time.monotonic() - t_start) * 1000)
+                asyncio.create_task(log_interaction(
+                    transcript=transcript,
+                    command=cmd,
+                    payload=payload,
+                    reply=reply_text,
+                    input_audio_key=input_audio_key,
+                    latency_ms=latency_ms,
+                ))
 
             except Exception as e:
                 stop.set()

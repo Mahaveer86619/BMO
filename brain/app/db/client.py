@@ -64,15 +64,21 @@ async def _apply_schema(pool: asyncpg.Pool) -> None:
         """)
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS interactions (
-                id           SERIAL       PRIMARY KEY,
-                created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-                transcript   TEXT,
-                command      VARCHAR(50),
-                payload      TEXT,
-                reply        TEXT,
-                audio_key    TEXT,
-                latency_ms   INTEGER,
-                tts_provider VARCHAR(20)
+                id              SERIAL       PRIMARY KEY,
+                created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                transcript      TEXT,
+                command         VARCHAR(50),
+                payload         TEXT,
+                reply           TEXT,
+                input_audio_key TEXT,
+                audio_key       TEXT,
+                latency_ms      INTEGER,
+                tts_provider    VARCHAR(20)
             )
+        """)
+        # CREATE TABLE IF NOT EXISTS doesn't alter an already-existing table —
+        # this covers deployments from before input_audio_key existed.
+        await conn.execute("""
+            ALTER TABLE interactions ADD COLUMN IF NOT EXISTS input_audio_key TEXT
         """)
     log.info("DB schema applied.")

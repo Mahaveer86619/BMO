@@ -12,12 +12,17 @@ async def log_interaction(
     command: str,
     payload: str,
     reply: str,
-    audio_key: str | None,
+    input_audio_key: str | None = None,
+    audio_key: str | None = None,
     latency_ms: int,
 ) -> None:
     """
     Persist one turn to the interactions table.
     Silently skips if the DB pool is not available.
+
+    input_audio_key is the raw mic capture (what was actually said); audio_key
+    is the synthesized response WAV — only set on /talk (HTTP), since /ws/talk
+    streams TTS in chunks with no single consolidated response file.
     """
     pool = get_pool()
     if pool is None:
@@ -27,20 +32,21 @@ async def log_interaction(
             await conn.execute(
                 """
                 INSERT INTO interactions
-                    (transcript, command, payload, reply, audio_key, latency_ms, tts_provider)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    (transcript, command, payload, reply, input_audio_key, audio_key, latency_ms, tts_provider)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 """,
                 transcript,
                 command,
                 payload,
                 reply,
+                input_audio_key,
                 audio_key,
                 latency_ms,
                 settings.TTS_PROVIDER,
             )
         log.debug(
-            "Interaction logged — cmd=%r  latency=%dms  audio=%s",
-            command, latency_ms, audio_key or "none",
+            "Interaction logged — cmd=%r  latency=%dms  input=%s  audio=%s",
+            command, latency_ms, input_audio_key or "none", audio_key or "none",
         )
     except Exception as e:
         log.warning("Failed to log interaction: %s", e)

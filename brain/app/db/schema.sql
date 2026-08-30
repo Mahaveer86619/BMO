@@ -23,13 +23,14 @@ CREATE TABLE IF NOT EXISTS bots (
 );
 
 CREATE TABLE IF NOT EXISTS interactions (
-    id           SERIAL       PRIMARY KEY,
-    created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    transcript   TEXT,                          -- what the user said (STT output)
-    command      VARCHAR(50),                   -- routed command (time/search/llm/…)
-    payload      TEXT,                          -- stripped text sent to handler
-    reply        TEXT,                          -- final text sent to TTS
-    audio_key    TEXT,                          -- MinIO object key for the response WAV
-    latency_ms   INTEGER,                       -- ms from audio received to reply ready
-    tts_provider VARCHAR(20)                    -- piper | xtts
+    id              SERIAL       PRIMARY KEY,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    transcript      TEXT,                          -- what the user said (STT output)
+    command         VARCHAR(50),                   -- routed command (time/search/llm/…)
+    payload         TEXT,                          -- stripped text sent to handler
+    reply           TEXT,                          -- final text sent to TTS
+    input_audio_key TEXT,                          -- MinIO object key for the raw mic input WAV
+    audio_key       TEXT,                          -- MinIO object key for the response WAV (NULL on /ws/talk — streamed in chunks, no single file)
+    latency_ms      INTEGER,                       -- ms from audio received to reply ready
+    tts_provider    VARCHAR(20)                    -- piper | xtts
 );

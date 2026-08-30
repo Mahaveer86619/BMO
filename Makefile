@@ -1,15 +1,24 @@
 # BMO — top-level dev workflow.
-# Server: one Docker image (Go hub + brain (Python) + Ollama, supervised together
-# — see Dockerfile, supervisord.conf). Firmware: MicroPython over mpremote
-# (see firmware/Makefile, firmware/README.md).
+#
+# Two server topologies, same system either way:
+#   single: one image — Go hub + brain (Python) + Ollama, supervised together
+#           (Dockerfile, supervisord.conf, docker-compose.yml)
+#   multi:  three images — server/brain/Ollama as separate containers
+#           (server/Dockerfile, brain/Dockerfile, docker-compose.multi.yml)
+# Pick one; they use the same ports (4040/5432/6379/9000/9001) so don't run
+# both at once. `make down` / `make down-multi` before switching.
+#
+# Firmware: MicroPython over mpremote (see firmware/Makefile, firmware/README.md).
 
 COMPOSE := docker compose
+COMPOSE_MULTI := docker compose -f docker-compose.multi.yml
 
-.PHONY: help build up up-build stop down restart logs logs-server logs-db logs-redis ps \
+.PHONY: help build up up-build stop down restart logs logs-server logs-db logs-redis logs-storage ps \
+        build-multi up-multi up-multi-build stop-multi down-multi logs-multi logs-multi-server logs-multi-brain logs-multi-ollama ps-multi \
         pico-port pico-ls pico-monitor pico-run pico-upload pico-put pico-reset pico-hard-reset
 
 help:
-	@echo "Server (Docker — Go hub + brain (Python) + Ollama, one image):"
+	@echo "Server — single image (Go hub + brain + Ollama, one container):"
 	@echo "  make build                    - build the bmo-server image"
 	@echo "  make up                       - start everything, detached (builds on first run only)"
 	@echo "  make up-build                 - rebuild the image, then start"
@@ -21,6 +30,18 @@ help:
 	@echo "  make logs-storage             - follow MinIO (audio storage) logs"
 	@echo "  make ps                       - show container status"
 	@echo ""
+	@echo "Server — multi image (server / brain / Ollama as separate containers):"
+	@echo "  make build-multi              - build the server + brain images"
+	@echo "  make up-multi                 - start everything, detached (builds on first run only)"
+	@echo "  make up-multi-build           - rebuild the images, then start"
+	@echo "  make stop-multi               - stop containers without removing them"
+	@echo "  make down-multi               - stop and remove containers"
+	@echo "  make logs-multi               - follow logs from all services"
+	@echo "  make logs-multi-server        - follow the Go container only"
+	@echo "  make logs-multi-brain         - follow the brain container only"
+	@echo "  make logs-multi-ollama        - follow the ollama container only"
+	@echo "  make ps-multi                 - show container status"
+	@echo ""
 	@echo "Pico (MicroPython over mpremote — see firmware/README.md):"
 	@echo "  make pico-port                                  - show detected serial port"
 	@echo "  make pico-monitor                               - open serial REPL / live output"
@@ -31,7 +52,7 @@ help:
 	@echo "  make pico-reset                                 - soft reset (re-runs main.py)"
 	@echo "  make pico-hard-reset                            - hard reset via DTR toggle"
 
-# --- Server ---
+# --- Server: single image ---
 
 build:
 	$(COMPOSE) build
@@ -68,6 +89,38 @@ logs-storage:
 
 ps:
 	$(COMPOSE) ps
+
+# --- Server: multi image ---
+
+build-multi:
+	$(COMPOSE_MULTI) build
+
+up-multi:
+	$(COMPOSE_MULTI) up -d
+
+up-multi-build:
+	$(COMPOSE_MULTI) up -d --build
+
+stop-multi:
+	$(COMPOSE_MULTI) stop
+
+down-multi:
+	$(COMPOSE_MULTI) down
+
+logs-multi:
+	$(COMPOSE_MULTI) logs -f
+
+logs-multi-server:
+	$(COMPOSE_MULTI) logs -f server
+
+logs-multi-brain:
+	$(COMPOSE_MULTI) logs -f brain
+
+logs-multi-ollama:
+	$(COMPOSE_MULTI) logs -f ollama
+
+ps-multi:
+	$(COMPOSE_MULTI) ps
 
 # --- Pico ---
 
