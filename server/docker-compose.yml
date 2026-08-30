@@ -1,0 +1,85 @@
+services:
+  bmo-server:
+    build:
+      context: .
+      args:
+        ENABLE_GPU: "false" # set "true" + uncomment the GPU reservation below to use the host's NVIDIA GPU
+    container_name: bmo-server
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: password
+      DB_NAME: bmo
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AI_HOST: 127.0.0.1
+      AI_PORT: 8500
+      # Ollama now runs inside this same container (supervised alongside Go/Python
+      # — see supervisord.conf) rather than on the host, so this is just localhost.
+      OLLAMA_BASE_URL: http://127.0.0.1:11434
+      # Space-separated models to auto-pull on first boot — see docker/bootstrap.sh.
+      # Add "llama3.2:3b" here once you actually need the reasoning tier.
+      OLLAMA_DEFAULT_MODELS: "llama3.2:1b"
+      LLM_PROVIDER_CLOUD_ENABLED: "false"
+    ports:
+      - "4040:4040"
+    volumes:
+      # Persists pulled models across container recreation — without this,
+      # bootstrap.sh re-downloads the default model(s) every time.
+      - ollama_data:/root/.ollama
+    # Uncomment to pass the host's NVIDIA GPU through to Ollama + (if ENABLE_GPU
+    # build arg is "true") torch — needs nvidia-container-toolkit on the host:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4040/api/v1/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 60s # first boot pulls a model — give bootstrap.sh room before failing health
+
+  postgres:
+    image: postgres:alpine
+    container_name: bmo-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: bmo
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:alpine
+    container_name: bmo-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+  redis_data:
+  ollama_data:

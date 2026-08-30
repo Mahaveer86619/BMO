@@ -1,0 +1,20 @@
+# BMO AI service — internal-only, called by the Go hub over localhost.
+# See server/ai/README.md and notes/Software.md#Model Router.
+
+fastapi>=0.115
+uvicorn[standard]>=0.32
+httpx>=0.27
+pydantic-settings>=2.6
+
+# LLM connectivity — "premade interface" so a tier can be local Ollama or any
+# OpenAI-compatible API without touching the router's call sites.
+langchain-core>=0.3
+langchain-ollama>=0.2
+langchain-openai>=0.2
+
+# --- Not wired in yet (Stage 3 work) — add when STT/TTS actually get implemented ---
+# faster-whisper       # STT — see notes/Software.md#Server Stack
+# TTS                  # Coqui XTTS v2 — see notes/Software.md#Phase 1.5
+# pydub                # audio normalisation to 16kHz/16-bit/mono
+# librosa              # prosody features — see notes/Software.md#Affect Detection
+# sentence-transformers  # embeddings for the memory graph — see notes/Software.md#Personal Memory Graph

@@ -1,0 +1,37 @@
+services:
+  wakeword:
+    build: .
+    image: bmo-wakeword-test
+
+    # --- WAV file test (default) ---
+    # Mount a WAV file and pass it as an argument:
+    #   docker compose run --rm wakeword --file /audio/sample.wav
+    #
+    # --- Live mic test ---
+    # Requires host audio devices to be passed through (Linux ALSA):
+    #   docker compose run --rm wakeword --mic
+    #
+    # Override CMD here for a persistent default:
+    command: ["--help"]
+
+    volumes:
+      # Mount a local audio/ directory so you can drop WAV files in without rebuilding
+      - ./audio:/audio:ro
+      # Persist downloaded models across rebuilds
+      - wakeword_models:/root/.cache/openwakeword
+
+    devices:
+      # ALSA default audio capture device — needed for --mic mode.
+      # Comment these out if only testing with WAV files.
+      - /dev/snd:/dev/snd
+
+    environment:
+      # ALSA card selection — adjust if your mic is on a different card
+      - AUDIODEV=default
+
+    # Required for mic access via ALSA
+    group_add:
+      - audio
+
+volumes:
+  wakeword_models:
