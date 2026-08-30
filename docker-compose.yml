@@ -96,6 +96,7 @@ services:
       interval: 2s
       timeout: 5s
       retries: 10
+      start_period: 40s # first boot does initdb then a restart cycle — ~30s here before it's actually ready
 
   redis:
     image: redis:alpine
