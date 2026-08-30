@@ -1,0 +1,139 @@
+name: bmo
+
+services:
+  # ── The monolith: Go hub + brain (Python) + Ollama, one image ──────────────────
+  bmo-server:
+    build:
+      context: .
+      args:
+        ENABLE_GPU: "false" # set "true" + uncomment the GPU reservation below to use the host's NVIDIA GPU
+    container_name: bmo-server
+    environment:
+      # Go
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: password
+      DB_NAME: bmo
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AI_HOST: 127.0.0.1
+      AI_PORT: 8000
+
+      # brain (see brain/app/core/config.py for the full list) — Ollama now runs
+      # inside this same container (supervised alongside Go/brain), so it's just
+      # localhost, same as brain's DB/MinIO which are separate containers on this
+      # compose network.
+      OLLAMA_URL: http://127.0.0.1:11434
+      OLLAMA_MODEL: llama3.2:1b
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/bmo
+      STT_PROVIDER: local
+      WHISPER_MODEL: base
+      TTS_PROVIDER: piper
+      MINIO_ENDPOINT: storage:9000
+      MINIO_ACCESS_KEY: bmo
+      MINIO_SECRET_KEY: bmo_secret
+      MINIO_BUCKET: bmo-audio
+      MINIO_SECURE: "false"
+      DEFAULT_WEATHER_LOCATION: London
+      WAKE_WORD: "" # leave empty for HTTP /talk testing; set once VC-02 gating is wired
+      LOG_LEVEL: alerts
+
+      # Space-separated models to auto-pull on first boot (must match OLLAMA_MODEL
+      # above, or brain's first request 404s until this finishes) — see docker/bootstrap.sh.
+      OLLAMA_DEFAULT_MODELS: "llama3.2:1b"
+    ports:
+      - "4040:4040"
+    volumes:
+      # Ollama models persist across rebuilds/restarts — without this,
+      # bootstrap.sh re-downloads the default model(s) every time.
+      - ollama_data:/root/.ollama
+      # brain's model caches — same story, and Whisper/XTTS/Kokoro are large.
+      - whisper_cache:/app/data/whisper
+      - xtts_cache:/app/data/xtts
+      - kokoro_cache:/app/data/kokoro
+      # brain's voice reference + pre-recorded clips — real content, not caches,
+      # so bind-mounted from the repo rather than a named volume.
+      - ./brain/data/bmo_voice:/app/data/bmo_voice
+      - ./brain/data/bmo:/app/data/bmo:ro
+    # Uncomment to pass the host's NVIDIA GPU through to Ollama + (if ENABLE_GPU
+    # build arg is "true") torch — needs nvidia-container-toolkit on the host:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4040/api/v1/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 600s # brain can spend minutes loading Whisper/TTS on first boot
+
+  # ── PostgreSQL — shared by Go's health check and brain's schema ────────────────
+  postgres:
+    image: postgres:alpine
+    container_name: bmo-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: bmo
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:alpine
+    container_name: bmo-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  # ── MinIO — brain's audio object storage ────────────────────────────────────────
+  storage:
+    image: minio/minio:latest
+    container_name: bmo-storage
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: bmo
+      MINIO_ROOT_PASSWORD: bmo_secret
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+  ollama_data:
+  whisper_cache:
+  xtts_cache:
+  kokoro_cache:
+  minio_data:

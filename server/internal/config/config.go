@@ -21,7 +21,7 @@ type AppConfig struct {
 	RedisPass string
 	RedisDB   int
 
-	// AI service (server/ai) — internal-only, never exposed outside the container.
+	// brain (../../brain) — internal-only, never exposed outside the container.
 	AIHost string
 	AIPort int
 }
@@ -45,7 +45,7 @@ func LoadConfig() (*AppConfig, error) {
 		RedisDB:   GetIntValue("REDIS_DB", 0),
 
 		AIHost: GetStringValue("AI_HOST", "127.0.0.1"),
-		AIPort: GetIntValue("AI_PORT", 8500),
+		AIPort: GetIntValue("AI_PORT", 8000),
 	}
 
 	return Config, nil

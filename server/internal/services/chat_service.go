@@ -7,9 +7,8 @@ import (
 )
 
 // ChatService backs POST /api/v1/chat — text in, text out, the debug/test
-// endpoint from notes/Software.md's "Current Endpoints" table. It forwards
-// straight to the AI service's fast tier; the NLP fast-path and full
-// STT->router->memory->TTS pipeline described in the notes don't exist yet.
+// endpoint. Forwards straight to brain's own /api/v1/chat, which exercises
+// the NLP/command layer + Ollama without any audio involved.
 type ChatService struct {
 	ai *aiclient.Client
 }
@@ -18,13 +17,6 @@ func NewChatService(ai *aiclient.Client) *ChatService {
 	return &ChatService{ai: ai}
 }
 
-func (s *ChatService) Chat(ctx context.Context, text string, tier string) (string, error) {
-	resp, err := s.ai.Chat(ctx, aiclient.ChatRequest{
-		Messages: []aiclient.ChatMessage{{Role: "user", Content: text}},
-		Tier:     tier,
-	})
-	if err != nil {
-		return "", err
-	}
-	return resp.Reply, nil
+func (s *ChatService) Chat(ctx context.Context, text string) (*aiclient.ChatResponse, error) {
+	return s.ai.Chat(ctx, text)
 }

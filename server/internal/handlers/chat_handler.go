@@ -13,7 +13,6 @@ type ChatHandler struct {
 
 type chatRequestBody struct {
 	Text string `json:"text"`
-	Tier string `json:"tier,omitempty"`
 }
 
 func NewChatHandler(g *echo.Group, service *services.ChatService) *ChatHandler {
@@ -33,15 +32,10 @@ func (h *ChatHandler) Chat(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "text is required"})
 	}
 
-	tier := body.Tier
-	if tier == "" {
-		tier = "fast"
-	}
-
-	reply, err := h.service.Chat(c.Request().Context(), body.Text, tier)
+	resp, err := h.service.Chat(c.Request().Context(), body.Text)
 	if err != nil {
 		return c.JSON(http.StatusBadGateway, echo.Map{"error": err.Error()})
 	}
 
-	return c.JSON(http.StatusOK, echo.Map{"reply": reply})
+	return c.JSON(http.StatusOK, resp)
 }

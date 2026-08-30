@@ -11,6 +11,10 @@ import (
 type Status struct {
 	Status   string            `json:"status"`
 	Services map[string]string `json:"services"`
+	// Loaded lists which of brain's models have finished warming up
+	// (whisper, piper/xtts/kokoro/cosyvoice, fillers) — empty until brain
+	// reports "ready". See aiclient.ReadyStatus.
+	Loaded []string `json:"loaded,omitempty"`
 }
 
 type HealthService struct {
@@ -41,15 +45,26 @@ func (s *HealthService) Check(ctx context.Context) Status {
 		Services["redis"] = "healthy"
 	}
 
-	if err := s.ai.Health(ctx); err != nil {
-		Services["ai"] = "unhealthy"
+	// brain/'s /health is mere liveness (200 even while models are still
+	// loading) — /ready is the meaningful check for "can it actually serve
+	// a request", so that's what /api/v1/health reports as "brain" here.
+	var loaded []string
+	ready, err := s.ai.Ready(ctx)
+	switch {
+	case err != nil:
+		Services["brain"] = "unreachable"
 		overall = "unhealthy"
-	} else {
-		Services["ai"] = "healthy"
+	case ready.Status != "ready":
+		Services["brain"] = ready.Status // "loading" or "error"
+		overall = "unhealthy"
+	default:
+		Services["brain"] = "healthy"
+		loaded = ready.Loaded
 	}
 
 	return Status{
 		Status:   overall,
 		Services: Services,
+		Loaded:   loaded,
 	}
 }

@@ -1,15 +1,15 @@
 # BMO — top-level dev workflow.
-# Server: one Docker image (Go hub + Python AI service + Ollama, supervised together
-# — see server/Dockerfile, server/supervisord.conf). Firmware: MicroPython over mpremote
+# Server: one Docker image (Go hub + brain (Python) + Ollama, supervised together
+# — see Dockerfile, supervisord.conf). Firmware: MicroPython over mpremote
 # (see firmware/Makefile, firmware/README.md).
 
-COMPOSE := docker compose -f server/docker-compose.yml --project-directory server
+COMPOSE := docker compose
 
 .PHONY: help build up up-build stop down restart logs logs-server logs-db logs-redis ps \
         pico-port pico-ls pico-monitor pico-run pico-upload pico-put pico-reset pico-hard-reset
 
 help:
-	@echo "Server (Docker — Go hub + Python AI + Ollama, one image):"
+	@echo "Server (Docker — Go hub + brain (Python) + Ollama, one image):"
 	@echo "  make build                    - build the bmo-server image"
 	@echo "  make up                       - start everything, detached (builds on first run only)"
 	@echo "  make up-build                 - rebuild the image, then start"
@@ -17,7 +17,8 @@ help:
 	@echo "  make down                     - stop and remove containers"
 	@echo "  make restart                  - restart the bmo-server container only"
 	@echo "  make logs                     - follow logs from all services"
-	@echo "  make logs-server              - follow bmo-server only (ollama + ai + go, all 3 processes)"
+	@echo "  make logs-server              - follow bmo-server only (ollama + brain + go, all 3 processes)"
+	@echo "  make logs-storage             - follow MinIO (audio storage) logs"
 	@echo "  make ps                       - show container status"
 	@echo ""
 	@echo "Pico (MicroPython over mpremote — see firmware/README.md):"
@@ -61,6 +62,9 @@ logs-db:
 
 logs-redis:
 	$(COMPOSE) logs -f redis
+
+logs-storage:
+	$(COMPOSE) logs -f storage
 
 ps:
 	$(COMPOSE) ps
