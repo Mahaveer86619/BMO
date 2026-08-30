@@ -56,6 +56,18 @@ PASSWORD = "your-password"
 SERVER_HOST = "192.168.1.6"   # your laptop's LAN IP — check with `hostname -I`, changes if your router re-DHCPs it
 ```
 
+**Then upload it to the board — this is easy to miss.** `make pico-run FILE=...` only sends the *one*
+script file to the board; it doesn't also send local files that script `import`s. Any test that does
+`from wifi_secrets import ...` needs the file actually present on the board's flash first, same as
+`lib/sh1106.py`:
+
+```bash
+make -C firmware put SRC=wifi_secrets.py
+```
+
+Otherwise you'll get `ImportError: no module named 'wifi_secrets'` even though the file clearly exists
+locally — it exists on your machine, just not yet on the board.
+
 ## Editor autocomplete for `machine` / `network` / `rp2` etc.
 
 These modules only exist on the board — Zed's Python language server can't resolve them by default. Fix once:
